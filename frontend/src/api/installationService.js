@@ -1,11 +1,10 @@
 import axios from 'axios';
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3007';
+import config from '../config';
 
 class InstallationService {
   constructor() {
     this.api = axios.create({
-      baseURL: `${API_URL}/user-software`,
+      baseURL: `${config.apiUrl}/user-software`,
       headers: {
         'Content-Type': 'application/json'
       }
@@ -24,6 +23,16 @@ class InstallationService {
         return Promise.reject(error);
       }
     );
+  }
+
+  async scanInstalledSoftware() {
+    try {
+      const response = await this.api.post('/scan');
+      return response.data;
+    } catch (error) {
+      console.error('Error scanning installed software:', error);
+      throw error;
+    }
   }
 
   async getInstalledSoftware() {

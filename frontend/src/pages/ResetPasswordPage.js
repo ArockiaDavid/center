@@ -10,6 +10,8 @@ import {
   Alert
 } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
+import config from '../config';
+import '../styles/ResetPasswordPage.css';
 
 const ResetPasswordPage = () => {
   const [newPassword, setNewPassword] = useState('');
@@ -44,7 +46,7 @@ const ResetPasswordPage = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:3007/auth/reset-password', {
+      const response = await fetch(`${config.apiUrl}/auth/reset-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -69,34 +71,27 @@ const ResetPasswordPage = () => {
 
   return (
     <Container component="main" maxWidth="xs">
-      <Box
-        sx={{
-          marginTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}
-      >
-        <Paper elevation={3} sx={{ p: 4, width: '100%' }}>
-          <Typography component="h1" variant="h5" align="center" gutterBottom>
+      <Box className="reset-password-container">
+        <Paper className="reset-password-paper" elevation={3}>
+          <Typography component="h1" variant="h5" className="reset-password-title">
             Reset Password
           </Typography>
           
           {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
+            <Alert severity="error" className="reset-password-alert">
               {error}
             </Alert>
           )}
 
           {success && (
-            <Alert severity="success" sx={{ mb: 2 }}>
+            <Alert severity="success" className="reset-password-alert">
               {success}
             </Alert>
           )}
 
-          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
+          <Box component="form" onSubmit={handleSubmit} className="reset-password-form">
             <TextField
-              margin="normal"
+              className="reset-password-textfield"
               required
               fullWidth
               name="newPassword"
@@ -108,7 +103,7 @@ const ResetPasswordPage = () => {
               disabled={!token}
             />
             <TextField
-              margin="normal"
+              className="reset-password-textfield"
               required
               fullWidth
               name="confirmPassword"
@@ -123,13 +118,13 @@ const ResetPasswordPage = () => {
               type="submit"
               fullWidth
               variant="contained"
-              sx={{ mt: 3, mb: 2 }}
+              className="reset-password-button"
               disabled={!token}
             >
               Reset Password
             </Button>
-            <Box sx={{ textAlign: 'center' }}>
-              <Link href="/login" variant="body2">
+            <Box className="reset-password-link-container">
+              <Link href="/login" variant="body2" className="reset-password-link">
                 Back to Sign in
               </Link>
             </Box>

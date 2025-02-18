@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAutoLogout from '../hooks/useAutoLogout';
 import { installationService } from '../api/installationService';
+import authService from '../api/authService';
 import { Grid, Typography, Box, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import Header from '../components/Header';
 import { 
@@ -11,7 +12,7 @@ import {
 } from '@mui/icons-material';
 import AppCard from '../components/AppCard';
 import LogoutWarning from '../components/LogoutWarning';
-import './HomePage.css';
+import '../styles/HomePage.css';
 
 const categories = [
   { id: 'all', name: 'All Software', icon: <BuildIcon /> },
@@ -89,16 +90,9 @@ const HomePage = () => {
   const [installedSoftware, setInstalledSoftware] = useState([]);
   const [user, setUser] = useState(null);
 
-  // Load user data and installed software on mount
+  // Load installed software on mount
   useEffect(() => {
-    const loadInitialData = async () => {
-      // Load user data
-      const userData = localStorage.getItem('user');
-      if (userData) {
-        setUser(JSON.parse(userData));
-      }
-
-      // Load installed software
+    const loadInstalledSoftware = async () => {
       try {
         const response = await installationService.getInstalledSoftware();
         const data = Array.isArray(response) ? response : [];
@@ -109,8 +103,10 @@ const HomePage = () => {
       }
     };
 
-    loadInitialData();
-  }, []); // Only run on mount
+    if (authService.isAuthenticated()) {
+      loadInstalledSoftware();
+    }
+  }, []);
 
   // Filter software based on category and search term
   const filteredSoftware = softwareList
@@ -133,9 +129,8 @@ const HomePage = () => {
 
   // Enable auto-logout after inactivity
   const handleLogout = useCallback(() => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    navigate('/login');
+    authService.logout();
+    navigate('/login', { replace: true });
   }, [navigate]);
 
   const { showWarning, remainingTime, onStayLoggedIn } = useAutoLogout(handleLogout);
@@ -172,25 +167,30 @@ const HomePage = () => {
     }
   }, []);
 
-  // Check if user is logged in
+  // Check authentication and user role
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
-    
-    if (!token || !user) {
-      navigate('/login');
-      return;
-    }
-
-    try {
-      const userData = JSON.parse(user);
-      if (!userData.role || userData.role !== 'user') {
+    const checkAuth = () => {
+      if (!authService.isAuthenticated()) {
+        console.log('Not authenticated, redirecting to login');
         navigate('/login');
+        return;
       }
-    } catch (err) {
-      console.error('Error parsing user data:', err);
-      navigate('/login');
-    }
+
+      const currentUser = authService.getCurrentUser();
+      if (!currentUser || currentUser.role !== 'user') {
+        console.log('Invalid user role:', currentUser?.role);
+        authService.logout();
+        navigate('/login');
+        return;
+      }
+
+      setUser(currentUser);
+    };
+
+    checkAuth();
+    // Check auth status periodically
+    const interval = setInterval(checkAuth, 60000); // every minute
+    return () => clearInterval(interval);
   }, [navigate]);
 
   return (

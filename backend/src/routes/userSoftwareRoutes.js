@@ -5,15 +5,31 @@ const InstalledSoftware = require('../models/InstalledSoftware');
 const { exec } = require('child_process');
 const util = require('util');
 const execAsync = util.promisify(exec);
+const { scanInstalledSoftware } = require('../services/softwareScanService');
 
 // Get installed software for current user
 router.get('/', auth, async (req, res) => {
   try {
-    const software = await InstalledSoftware.find({ userId: req.user._id });
+    const software = await InstalledSoftware.find({ user: req.user._id });
     res.json(software);
   } catch (error) {
     console.error('Error fetching installed software:', error);
     res.status(500).json({ message: 'Error fetching installed software' });
+  }
+});
+
+// Trigger software scan for current user
+router.post('/scan', auth, async (req, res) => {
+  try {
+    const success = await scanInstalledSoftware(req.user._id);
+    if (success) {
+      res.json({ message: 'Software scan completed successfully' });
+    } else {
+      res.status(500).json({ message: 'Software scan failed' });
+    }
+  } catch (error) {
+    console.error('Error during software scan:', error);
+    res.status(500).json({ message: 'Error during software scan' });
   }
 });
 
@@ -57,7 +73,7 @@ router.post('/', auth, async (req, res) => {
 
     // Check if software is already installed
     const existingSoftware = await InstalledSoftware.findOne({
-      userId: req.user._id,
+      user: req.user._id,
       appId
     });
 
@@ -74,7 +90,7 @@ router.post('/', auth, async (req, res) => {
     }
 
     const software = new InstalledSoftware({
-      userId: req.user._id,
+      user: req.user._id,
       userEmail: req.user.email,
       userName: req.user.name,
       appId,
@@ -98,7 +114,7 @@ router.get('/:appId/updates', auth, async (req, res) => {
   try {
     const { appId } = req.params;
     const software = await InstalledSoftware.findOne({
-      userId: req.user._id,
+      user: req.user._id,
       appId
     });
 
@@ -139,7 +155,7 @@ router.put('/:appId', auth, async (req, res) => {
     const { version } = req.body;
 
     const software = await InstalledSoftware.findOne({
-      userId: req.user._id,
+      user: req.user._id,
       appId
     });
 
@@ -167,7 +183,7 @@ router.get('/user/:userId', auth, async (req, res) => {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    const software = await InstalledSoftware.find({ userId });
+    const software = await InstalledSoftware.find({ user: userId });
     res.json(software);
   } catch (error) {
     console.error('Error fetching installed software:', error);
@@ -180,7 +196,7 @@ router.delete('/:appId', auth, async (req, res) => {
   try {
     const { appId } = req.params;
     const software = await InstalledSoftware.findOne({
-      userId: req.user._id,
+      user: req.user._id,
       appId
     });
 

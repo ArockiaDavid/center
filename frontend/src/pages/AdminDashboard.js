@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import config from '../config';
 import {
   Container,
   Grid,
@@ -19,7 +20,7 @@ import {
   Person as UserIcon
 } from '@mui/icons-material';
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+const COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444'];
 const RADIAN = Math.PI / 180;
 
 // Custom active shape for pie chart
@@ -40,9 +41,18 @@ const renderActiveShape = (props) => {
 
   return (
     <g>
-      <text x={cx} y={cy} dy={8} textAnchor="middle" fill={fill}>
+      {/* Center text */}
+      <text x={cx} y={cy - 10} textAnchor="middle" fill={fill} style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>
         {payload.name}
       </text>
+      <text x={cx} y={cy + 10} textAnchor="middle" fill={fill} style={{ fontSize: '1rem' }}>
+        {`${value} Users`}
+      </text>
+      <text x={cx} y={cy + 30} textAnchor="middle" fill="#666" style={{ fontSize: '0.9rem' }}>
+        {`${(percent * 100).toFixed(1)}%`}
+      </text>
+
+      {/* Inner sector */}
       <Sector
         cx={cx}
         cy={cy}
@@ -52,6 +62,8 @@ const renderActiveShape = (props) => {
         endAngle={endAngle}
         fill={fill}
       />
+
+      {/* Outer sector */}
       <Sector
         cx={cx}
         cy={cy}
@@ -61,14 +73,23 @@ const renderActiveShape = (props) => {
         outerRadius={outerRadius + 10}
         fill={fill}
       />
-      <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={fill} fill="none" />
-      <circle cx={ex} cy={ey} r={2} fill={fill} stroke="none" />
-      <text x={ex + (cos >= 0 ? 1 : -1) * 12} y={ey} textAnchor={textAnchor} fill="#333">
-        {`${value} Users`}
-      </text>
-      <text x={ex + (cos >= 0 ? 1 : -1) * 12} y={ey} dy={18} textAnchor={textAnchor} fill="#999">
-        {`(${(percent * 100).toFixed(2)}%)`}
-      </text>
+
+      {/* Gradient overlay */}
+      <defs>
+        <radialGradient id={`gradient-${payload.name}`}>
+          <stop offset="0%" stopColor={fill} stopOpacity={0.8} />
+          <stop offset="100%" stopColor={fill} stopOpacity={0.3} />
+        </radialGradient>
+      </defs>
+      <Sector
+        cx={cx}
+        cy={cy}
+        innerRadius={innerRadius}
+        outerRadius={outerRadius}
+        startAngle={startAngle}
+        endAngle={endAngle}
+        fill={`url(#gradient-${payload.name})`}
+      />
     </g>
   );
 };
@@ -105,21 +126,60 @@ const StatsCard = ({ title, value, icon: Icon, color }) => (
   <Card 
     sx={{ 
       height: '100%',
-      borderRadius: 2,
-      boxShadow: 1,
+      borderRadius: 3,
+      background: `linear-gradient(135deg, ${color}08 0%, ${color}03 100%)`,
+      position: 'relative',
+      overflow: 'hidden',
+      transition: 'all 0.3s ease',
       '&:hover': {
-        boxShadow: 4
+        transform: 'translateY(-2px)',
+        boxShadow: `0 8px 24px ${color}20`
+      },
+      '&::before': {
+        content: '""',
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        background: `linear-gradient(45deg, ${color}10, transparent)`,
+        clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%)',
       }
     }}
   >
-    <CardContent>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-        <Icon sx={{ color, mr: 1 }} />
-        <Typography variant="h6" color="text.secondary">
+    <CardContent sx={{ position: 'relative' }}>
+      <Box sx={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        mb: 3,
+        gap: 1.5
+      }}>
+        <Icon sx={{ 
+          color,
+          fontSize: '2rem',
+          filter: `drop-shadow(0 2px 4px ${color}40)`
+        }} />
+        <Typography 
+          variant="h6" 
+          sx={{ 
+            color: 'text.primary',
+            fontWeight: 600,
+            letterSpacing: '0.5px'
+          }}
+        >
           {title}
         </Typography>
       </Box>
-      <Typography variant="h4" component="div" sx={{ fontWeight: 'bold', color }}>
+      <Typography 
+        variant="h3" 
+        component="div" 
+        sx={{ 
+          fontWeight: 700,
+          color,
+          textShadow: `0 2px 4px ${color}20`,
+          letterSpacing: '-1px'
+        }}
+      >
         {value}
       </Typography>
     </CardContent>
@@ -143,7 +203,7 @@ const AdminDashboard = () => {
     const fetchUsers = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:3007/users', {
+        const response = await fetch(`${config.apiUrl}/users`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -249,7 +309,21 @@ const AdminDashboard = () => {
             {error ? (
               <Typography color="error">{error}</Typography>
             ) : (
-              <Box sx={{ width: '100%', height: 400 }}>
+              <Box sx={{ 
+                width: '100%', 
+                height: 400,
+                position: 'relative',
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: 'radial-gradient(circle at center, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)',
+                  pointerEvents: 'none'
+                }
+              }}>
                 <ResponsiveContainer width="100%" height={400}>
                   <PieChart>
                     <Pie
@@ -258,8 +332,11 @@ const AdminDashboard = () => {
                       data={userData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={100}
-                      outerRadius={140}
+                      innerRadius={90}
+                      outerRadius={120}
+                      paddingAngle={2}
+                      startAngle={90}
+                      endAngle={450}
                       fill="#8884d8"
                       dataKey="value"
                       onMouseEnter={onPieEnter}
@@ -269,18 +346,44 @@ const AdminDashboard = () => {
                           key={`cell-${index}`} 
                           fill={COLORS[index % COLORS.length]}
                           stroke={theme.palette.background.paper}
-                          strokeWidth={2}
+                          strokeWidth={3}
                         />
                       ))}
                     </Pie>
-                    <Tooltip content={<CustomTooltip />} />
+                    <Tooltip 
+                      content={<CustomTooltip />} 
+                      wrapperStyle={{ outline: 'none' }}
+                    />
                     <Legend 
-                      verticalAlign="bottom" 
-                      height={36}
+                      verticalAlign="middle" 
+                      align="right"
+                      layout="vertical"
+                      iconSize={12}
+                      iconType="circle"
+                      wrapperStyle={{
+                        paddingLeft: '32px',
+                        paddingRight: '8px'
+                      }}
                       formatter={(value, entry) => (
-                        <span style={{ color: entry.color, fontWeight: 500 }}>
-                          {value}
-                        </span>
+                        <Box sx={{ 
+                          display: 'flex', 
+                          flexDirection: 'column',
+                          alignItems: 'flex-start'
+                        }}>
+                          <Typography sx={{ 
+                            color: entry.color,
+                            fontWeight: 600,
+                            fontSize: '0.9rem'
+                          }}>
+                            {value}
+                          </Typography>
+                          <Typography sx={{ 
+                            color: 'text.secondary',
+                            fontSize: '0.75rem'
+                          }}>
+                            {entry.payload.value} users
+                          </Typography>
+                        </Box>
                       )}
                     />
                   </PieChart>

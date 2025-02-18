@@ -91,13 +91,17 @@ router.put('/profile', auth, upload.single('avatar'), async (req, res) => {
     delete userObject.resetPasswordExpires;
 
     // Add full URL to avatar
+
+    let BASE_URL = process.env.BACKEND;
+    if (process.env.NODE_ENV === "production") {
+        BASE_URL = `${req.protocol}://${req.get('host')}`;
+    }
     if (userObject.avatar) {
-      userObject.avatar = `http://localhost:3007${userObject.avatar}`;
+      userObject.avatar = `${BASE_URL}${userObject.avatar}`;
     }
 
     res.json(userObject);
-  } catch (error) {
-    console.error('Admin profile update error:', error);
+  } catch (error) {    console.error('Admin profile update error:', error);
     res.status(500).json({ message: 'Error updating admin profile' });
   }
 });

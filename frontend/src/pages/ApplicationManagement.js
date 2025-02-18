@@ -16,6 +16,7 @@ import {
   Chip,
   Grid
 } from '@mui/material';
+import config from '../config';
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
@@ -45,7 +46,7 @@ const ApplicationManagement = () => {
     const fetchApplications = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:3007/applications', {
+        const response = await fetch(`${config.apiUrl}/applications`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }

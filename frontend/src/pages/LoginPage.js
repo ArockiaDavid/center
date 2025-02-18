@@ -17,7 +17,7 @@ import {
 } from '@mui/icons-material';
 import authService from '../api/authService';
 import { installationService } from '../api/installationService';
-import './LoginPage.css';
+import '../styles/LoginPage.css';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -32,48 +32,70 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
-      // Login
+      setError('');
+      console.log('Attempting login with:', { email, role: 'user' });
+      
+      // Validate email format
+      if (!email.endsWith('@piramal.com')) {
+        setError('Only @piramal.com email addresses are allowed');
+        return;
+      }
+      
+      // Validate password
+      if (!password || password.length < 6) {
+        setError('Password must be at least 6 characters long');
+        return;
+      }
+      
+      // Attempt login
       const response = await authService.login(email, password, 'user');
+      console.log('Login successful:', response);
+      
+      // Verify response data
+      if (!response.token || !response.user) {
+        throw new Error('Invalid response from server');
+      }
+      
+      // Store auth data
       localStorage.setItem('token', response.token);
       localStorage.setItem('user', JSON.stringify(response.user));
-
-      // Check installed software
-      const softwareList = [
-        { id: 'sublime-text', command: 'subl' },
-        { id: 'visual-studio-code', command: 'code' },
-        { id: 'node', command: 'node' },
-        { id: 'postman', command: 'postman' },
-        { id: 'docker', command: 'docker' },
-        { id: 'google-chrome', command: 'google-chrome' }
-      ];
-
-      // Check each software
-      for (const software of softwareList) {
-        try {
-          const { exists, version } = await installationService.checkCommand(software.command);
-          if (exists) {
-            await installationService.installSoftware({
-              id: software.id,
-              name: software.id,
-              version: version
-            });
-          }
-        } catch (error) {
-          console.error(`Error checking ${software.id}:`, error);
-        }
+      
+      // Verify storage
+      const storedToken = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
+      
+      if (!storedToken || !storedUser) {
+        throw new Error('Failed to store authentication data');
       }
-
-      navigate('/');
+      
+      // Navigate to home page
+      console.log('Login successful, navigating to home page');
+      navigate('/home', { replace: true });
     } catch (error) {
       console.error('Login error:', error);
-      setError(error.response?.data?.message || 'Error logging in');
+      // Log the full error object for debugging
+      console.log('Full error object:', {
+        error,
+        message: error.message,
+        details: error.details,
+        stack: error.stack
+      });
+      
+      if (error.message) {
+        setError(error.message);
+        if (error.details) {
+          console.error('Login Error Details:', error.details);
+        }
+      } else {
+        setError('Failed to login. Please check your credentials and try again.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Container component="main" maxWidth="xs">
+    <Container component="main" maxWidth="xs" disableGutters>
       <Box className="login-container">
         <Paper className="login-paper" elevation={3}>
           <Box className="login-header">
@@ -88,34 +110,36 @@ const LoginPage = () => {
             </Typography>
           </Box>
 
-          <Box component="form" className="login-form" onSubmit={handleSubmit}>
-            <TextField
-              className="login-textfield"
-              required
-              fullWidth
-              id="email"
-              label="Email Address"
-              name="email"
-              autoComplete="email"
-              autoFocus
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              error={!!error}
-              helperText="Only @piramal.com email addresses are allowed"
-            />
-            <TextField
-              className="login-textfield password"
-              required
-              fullWidth
-              name="password"
-              label="Password"
-              type="password"
-              id="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              error={!!error}
-            />
+          <Box component="form" className="login-form" onSubmit={handleSubmit} noValidate>
+            <Box className="login-fields">
+              <TextField
+                className="login-textfield"
+                required
+                fullWidth
+                id="email"
+                label="Email Address"
+                name="email"
+                autoComplete="email"
+                autoFocus
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                error={!!error}
+                helperText="Only @piramal.com email addresses are allowed"
+              />
+              <TextField
+                className="login-textfield password"
+                required
+                fullWidth
+                name="password"
+                label="Password"
+                type="password"
+                id="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                error={!!error}
+              />
+            </Box>
 
             {error && (
               <Alert severity="error" className="login-error">

@@ -16,7 +16,7 @@ import {
   Person as PersonIcon
 } from '@mui/icons-material';
 import authService from '../api/authService';
-import './AdminLoginPage.css';
+import '../styles/AdminLoginPage.css';
 
 const AdminLoginPage = () => {
   const navigate = useNavigate();

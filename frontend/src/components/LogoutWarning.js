@@ -11,6 +11,7 @@ import {
   Typography
 } from '@mui/material';
 import { Warning as WarningIcon } from '@mui/icons-material';
+import '../styles/LogoutWarning.css';
 
 const LogoutWarning = ({ open, onStayLoggedIn, onLogout, remainingTime }) => {
   // Calculate progress value (0-100)
@@ -25,12 +26,7 @@ const LogoutWarning = ({ open, onStayLoggedIn, onLogout, remainingTime }) => {
     >
       <DialogTitle 
         id="logout-warning-title"
-        sx={{ 
-          display: 'flex', 
-          alignItems: 'center',
-          gap: 1,
-          color: 'warning.main'
-        }}
+        className="logout-warning-title"
       >
         <WarningIcon color="warning" />
         Session Timeout Warning
@@ -39,12 +35,10 @@ const LogoutWarning = ({ open, onStayLoggedIn, onLogout, remainingTime }) => {
         <DialogContentText id="logout-warning-description">
           Your session is about to expire due to inactivity. You will be automatically logged out in:
         </DialogContentText>
-        <Box sx={{ mt: 2, mb: 1 }}>
+        <Box className="logout-warning-timer">
           <Typography 
             variant="h4" 
-            align="center" 
-            color="warning.main"
-            sx={{ mb: 2 }}
+            className="logout-warning-countdown"
           >
             {Math.floor(remainingTime)} seconds
           </Typography>
@@ -52,14 +46,11 @@ const LogoutWarning = ({ open, onStayLoggedIn, onLogout, remainingTime }) => {
             variant="determinate" 
             value={progress}
             color="warning"
-            sx={{ 
-              height: 8,
-              borderRadius: 4
-            }}
+            className="logout-warning-progress"
           />
         </Box>
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
+      <DialogActions className="logout-warning-actions">
         <Button 
           onClick={onLogout}
           color="error"

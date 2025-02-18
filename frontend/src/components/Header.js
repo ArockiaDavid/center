@@ -8,11 +8,13 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import SearchIcon from '@mui/icons-material/Search';
 import MenuIcon from '@mui/icons-material/Menu';
 import config from '../config';
+import '../styles/Header.css';
 
 const Header = ({ user, onLogout, onSidebarToggle, onSearch }) => {
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState(null);
   const [searchValue, setSearchValue] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   const handleProfileClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -31,7 +33,7 @@ const Header = ({ user, onLogout, onSidebarToggle, onSearch }) => {
   const handleLogoutClick = async () => {
     try {
       const token = localStorage.getItem('token');
-      await fetch('http://localhost:3007/users/logout', {
+      await fetch(`${config.apiUrl}/users/logout`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -55,12 +57,10 @@ const Header = ({ user, onLogout, onSidebarToggle, onSearch }) => {
 
   const getAvatarUrl = () => {
     if (user?.avatar) {
-      // If avatar is already a full URL, return it
-      if (user.avatar.startsWith('http')) {
+      if (user.avatar.startsWith('data:') || user.avatar.startsWith('http')) {
         return user.avatar;
       }
-      // Otherwise, prepend the API base URL
-      return `http://localhost:3007${user.avatar}`;
+      return `${config.apiUrl}${user.avatar}`;
     }
     return null;
   };
@@ -68,10 +68,8 @@ const Header = ({ user, onLogout, onSidebarToggle, onSearch }) => {
   return (
     <AppBar 
       position="fixed" 
-      sx={{ 
-        backgroundColor: config.theme.primaryColor,
-        zIndex: (theme) => theme.zIndex.drawer + 1
-      }}
+      className="header-app-bar"
+      style={{ backgroundColor: config.theme.primaryColor }}
     >
       <Toolbar>
         {user?.role === 'admin' && (
@@ -80,7 +78,7 @@ const Header = ({ user, onLogout, onSidebarToggle, onSearch }) => {
             aria-label="open drawer"
             edge="start"
             onClick={onSidebarToggle}
-            sx={{ mr: 2 }}
+            className="header-menu-button"
           >
             <MenuIcon />
           </IconButton>
@@ -88,31 +86,28 @@ const Header = ({ user, onLogout, onSidebarToggle, onSearch }) => {
         <Typography 
           variant="h6" 
           component="div" 
-          sx={{ flexGrow: 1, cursor: 'pointer' }}
+          className="header-title"
           onClick={() => navigate(user?.role === 'admin' ? '/all-user' : '/home')}
         >
           {config.appName}
         </Typography>
 
         {user && user.role === 'user' && (
-          <Box sx={{ 
-            mx: 2,
-            position: 'relative',
-            display: 'flex',
-            justifyContent: 'flex-end'
-          }}>
+          <div className="header-search-container">
             <TextField
-              fullWidth={false}
               size="small"
               placeholder="Search software..."
               value={searchValue}
               onChange={handleSearchChange}
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => setIsSearchFocused(false)}
               onClick={(e) => e.stopPropagation()}
               onKeyDown={(e) => e.stopPropagation()}
+              className={`header-search-input ${isSearchFocused ? 'focused' : ''} ${searchValue ? 'has-value' : ''}`}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchIcon sx={{ color: 'text.secondary' }} />
+                    <SearchIcon color="action" />
                   </InputAdornment>
                 ),
                 endAdornment: searchValue ? (
@@ -123,51 +118,15 @@ const Header = ({ user, onLogout, onSidebarToggle, onSearch }) => {
                         setSearchValue('');
                         onSearch?.('');
                       }}
-                      sx={{ 
-                        color: 'text.secondary',
-                        '&:hover': {
-                          color: 'primary.main'
-                        }
-                      }}
+                      className="header-clear-button"
                     >
                       ×
                     </IconButton>
                   </InputAdornment>
-                ) : null,
-                sx: {
-                  bgcolor: 'background.paper',
-                  borderRadius: 2,
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'transparent'
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'transparent'
-                  },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'transparent'
-                  },
-                  boxShadow: 1,
-                  transition: 'all 0.3s ease-in-out',
-                  width: searchValue ? '300px' : '200px',
-                  '&:hover': {
-                    boxShadow: 2
-                  },
-                  '&.Mui-focused': {
-                    boxShadow: 3,
-                    width: '400px'
-                  }
-                }
-              }}
-              sx={{
-                '& .MuiInputBase-input': {
-                  '&::placeholder': {
-                    color: 'text.secondary',
-                    opacity: 0.8
-                  }
-                }
+                ) : null
               }}
             />
-          </Box>
+          </div>
         )}
 
         {user ? (
@@ -186,11 +145,7 @@ const Header = ({ user, onLogout, onSidebarToggle, onSearch }) => {
                 <Avatar 
                   src={getAvatarUrl()}
                   alt={user.name}
-                  sx={{ 
-                    width: 32, 
-                    height: 32,
-                    border: '2px solid white'
-                  }}
+                  className="header-avatar"
                 />
               ) : (
                 <AccountCircleIcon />
@@ -209,21 +164,78 @@ const Header = ({ user, onLogout, onSidebarToggle, onSearch }) => {
                 vertical: 'top',
                 horizontal: 'right',
               }}
+              PaperProps={{
+                elevation: 0,
+                className: 'header-menu-paper'
+              }}
             >
-              <Box sx={{ px: 2, py: 1 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                  {user?.name || 'User'}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {user?.email || ''}
-                </Typography>
+              <Box className="header-user-info">
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                  {getAvatarUrl() ? (
+                    <Avatar 
+                      src={getAvatarUrl()}
+                      alt={user?.name}
+                      className="header-avatar"
+                    />
+                  ) : (
+                    <AccountCircleIcon sx={{ width: 48, height: 48, color: 'rgba(255, 255, 255, 0.9)' }} />
+                  )}
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography className="header-user-name">
+                      {user?.name || 'User'}
+                    </Typography>
+                    <Box sx={{ 
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      color: 'rgba(255, 255, 255, 0.9)'
+                    }}>
+                      <Typography className="header-user-email">
+                        {user?.email || ''}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
               </Box>
-              <Divider />
-              <MenuItem onClick={handleEditProfile}>
-                <EditIcon sx={{ mr: 1 }} /> Edit Profile
-              </MenuItem>
-              <MenuItem onClick={handleLogoutClick}>
-                <LogoutIcon sx={{ mr: 1 }} /> Logout
+              <Box sx={{ p: 1 }}>
+                <MenuItem 
+                  onClick={handleEditProfile}
+                  className="header-menu-item"
+                >
+                  <EditIcon className="header-menu-item-icon" />
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="body1" sx={{ fontWeight: 500 }}>Edit Profile</Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      Update your profile information
+                    </Typography>
+                  </Box>
+                </MenuItem>
+                {config.enableNotifications && (
+                  <MenuItem 
+                    className="header-menu-item"
+                    onClick={handleClose}
+                  >
+                    <NotificationsIcon className="header-menu-item-icon" />
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="body1" sx={{ fontWeight: 500 }}>Notifications</Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                        View your notifications
+                      </Typography>
+                    </Box>
+                  </MenuItem>
+                )}
+              </Box>
+              <MenuItem 
+                onClick={handleLogoutClick}
+                className="header-menu-item logout"
+              >
+                <LogoutIcon className="header-menu-item-icon" />
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="body1" sx={{ fontWeight: 500 }}>Logout</Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    Sign out of your account
+                  </Typography>
+                </Box>
               </MenuItem>
             </Menu>
           </>
@@ -243,7 +255,6 @@ const Header = ({ user, onLogout, onSidebarToggle, onSearch }) => {
             </Button>
           </>
         )}
-
       </Toolbar>
     </AppBar>
   );

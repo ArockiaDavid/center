@@ -15,6 +15,7 @@ import {
   CardContent,
   useTheme
 } from '@mui/material';
+import config from '../config';
 import {
   Person as PersonIcon,
   AdminPanelSettings as AdminIcon,
@@ -104,7 +105,7 @@ const UserDetailsPage = () => {
     const fetchUserDetails = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:3007/users/${id}`, {
+        const response = await fetch(`${config.apiUrl}/users/${id}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -177,15 +178,18 @@ const UserDetailsPage = () => {
               >
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 3 }}>
                   <Avatar
-                    src={userDetails.avatar}
+                    src={userDetails.avatar ? (userDetails.avatar.startsWith('data:') ? userDetails.avatar : userDetails.avatar.startsWith('http') ? userDetails.avatar : `${config.apiUrl}${userDetails.avatar}`) : undefined}
                     alt={userDetails.name}
                     sx={{ 
                       width: 100, 
                       height: 100,
                       mr: 3,
-                      border: `3px solid ${getRoleColor(userDetails.role)}`
+                      border: `3px solid ${getRoleColor(userDetails.role)}`,
+                      bgcolor: `${getRoleColor(userDetails.role)}40`
                     }}
-                  />
+                  >
+                    {userDetails.name?.charAt(0).toUpperCase()}
+                  </Avatar>
                   <Box sx={{ flex: 1 }}>
                     <Typography variant="h4" gutterBottom>
                       {userDetails.name}

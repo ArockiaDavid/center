@@ -15,6 +15,7 @@ import {
   InputLabel
 } from '@mui/material';
 import authService from '../api/authService';
+import '../styles/ForgotPasswordPage.css';
 
 const ForgotPasswordPage = () => {
   const [formData, setFormData] = useState({
@@ -149,105 +150,32 @@ const ForgotPasswordPage = () => {
 
   return (
     <Container component="main" maxWidth="sm">
-      <Box
-        sx={{
-          marginTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          minHeight: '80vh',
-          justifyContent: 'center'
-        }}
-      >
-        <Paper 
-          elevation={2} 
-          sx={{ 
-            p: { xs: 3, sm: 6 }, 
-            width: '100%',
-            maxWidth: '450px',
-            borderRadius: 2,
-            border: '1px solid',
-            borderColor: 'divider'
-          }}
-        >
-          <Typography 
-            component="h1" 
-            variant="h5" 
-            sx={{ 
-              fontWeight: 400,
-              mb: 1,
-              textAlign: 'center'
-            }}
-          >
+      <Box className="forgot-password-container">
+        <Paper className="forgot-password-paper" elevation={2}>
+          <Typography component="h1" variant="h5" className="forgot-password-title">
             Reset password
           </Typography>
-          <Typography 
-            variant="body1" 
-            sx={{ 
-              mb: 4,
-              textAlign: 'center',
-              color: 'text.secondary'
-            }}
-          >
+          <Typography variant="body1" className="forgot-password-subtitle">
             Enter your email and new password
           </Typography>
           
           {error && (
-            <Alert 
-              severity="error" 
-              sx={{ 
-                mb: 3,
-                borderRadius: 1,
-                '& .MuiAlert-message': {
-                  color: '#d32f2f'
-                }
-              }}
-              variant="outlined"
-            >
+            <Alert severity="error" variant="outlined" className="forgot-password-alert error">
               {error}
             </Alert>
           )}
 
           {success && (
-            <Alert 
-              severity="success" 
-              sx={{ 
-                mb: 3,
-                borderRadius: 1,
-                '& .MuiAlert-message': {
-                  color: '#2e7d32'
-                }
-              }}
-              variant="outlined"
-            >
+            <Alert severity="success" variant="outlined" className="forgot-password-alert success">
               {success}
             </Alert>
           )}
 
-          <Box 
-            component="form" 
-            onSubmit={handleSubmit}
-          >
+          <Box component="form" onSubmit={handleSubmit}>
             <FormControl 
               fullWidth 
-              margin="normal"
+              className="forgot-password-form-control"
               error={!!validationErrors.role}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1,
-                  backgroundColor: 'background.paper',
-                  '&:hover fieldset': {
-                    borderColor: 'text.primary',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderWidth: '2px',
-                    borderColor: '#1a73e8',
-                  }
-                },
-                '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#1a73e8',
-                }
-              }}
             >
               <InputLabel id="role-label">Reset password as</InputLabel>
               <Select
@@ -258,12 +186,15 @@ const ForgotPasswordPage = () => {
                 label="Reset password as"
                 onChange={handleChange}
                 onBlur={handleBlur}
+                className="forgot-password-input"
               >
                 <MenuItem value="user">User</MenuItem>
                 <MenuItem value="admin">Admin</MenuItem>
               </Select>
             </FormControl>
+
             <TextField
+              className="forgot-password-input"
               margin="normal"
               fullWidth
               id="email"
@@ -276,24 +207,10 @@ const ForgotPasswordPage = () => {
               onBlur={handleBlur}
               error={!!validationErrors.email}
               helperText={validationErrors.email}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1,
-                  backgroundColor: 'background.paper',
-                  '&:hover fieldset': {
-                    borderColor: 'text.primary',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderWidth: '2px',
-                    borderColor: '#1a73e8',
-                  }
-                },
-                '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#1a73e8',
-                }
-              }}
             />
+
             <TextField
+              className="forgot-password-input"
               margin="normal"
               fullWidth
               name="newPassword"
@@ -306,24 +223,10 @@ const ForgotPasswordPage = () => {
               onBlur={handleBlur}
               error={!!validationErrors.newPassword}
               helperText={validationErrors.newPassword}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1,
-                  backgroundColor: 'background.paper',
-                  '&:hover fieldset': {
-                    borderColor: 'text.primary',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderWidth: '2px',
-                    borderColor: '#1a73e8',
-                  }
-                },
-                '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#1a73e8',
-                }
-              }}
             />
+
             <TextField
+              className="forgot-password-input"
               margin="normal"
               fullWidth
               name="confirmPassword"
@@ -336,58 +239,19 @@ const ForgotPasswordPage = () => {
               onBlur={handleBlur}
               error={!!validationErrors.confirmPassword}
               helperText={validationErrors.confirmPassword}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1,
-                  backgroundColor: 'background.paper',
-                  '&:hover fieldset': {
-                    borderColor: 'text.primary',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderWidth: '2px',
-                    borderColor: '#1a73e8',
-                  }
-                },
-                '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#1a73e8',
-                }
-              }}
             />
-            <Box sx={{ 
-              display: 'flex', 
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              mt: 4
-            }}>
+
+            <Box className="forgot-password-actions">
               <Link 
                 href={formData.role === 'admin' ? '/admin-login' : '/login'}
-                sx={{
-                  color: '#1a73e8',
-                  textDecoration: 'none',
-                  fontWeight: 500,
-                  fontSize: '0.875rem',
-                  '&:hover': {
-                    textDecoration: 'underline',
-                  }
-                }}
+                className="forgot-password-back-link"
               >
                 Back to Sign in
               </Link>
               <Button
                 type="submit"
                 variant="contained"
-                sx={{ 
-                  px: 4,
-                  py: 1,
-                  borderRadius: 1,
-                  textTransform: 'none',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  backgroundColor: '#1a73e8',
-                  '&:hover': {
-                    backgroundColor: '#1557b0',
-                  }
-                }}
+                className="forgot-password-submit"
               >
                 Reset password
               </Button>

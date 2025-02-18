@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
+import authService from './api/authService';
 import LoginPage from './pages/LoginPage';
 import AdminLoginPage from './pages/AdminLoginPage';
 import SignupPage from './pages/SignupPage';
@@ -16,10 +17,22 @@ import AdminProfilePage from './pages/AdminProfilePage';
 import './styles/variables.css';
 
 const PrivateRoute = ({ children }) => {
-  const token = localStorage.getItem('token');
-  const user = localStorage.getItem('user');
+  const isAuthenticated = authService.isAuthenticated();
+  const currentUser = authService.getCurrentUser();
   
-  if (!token || !user) {
+  console.log('PrivateRoute check:', {
+    isAuthenticated,
+    currentUser
+  });
+  
+  if (!isAuthenticated) {
+    console.log('Not authenticated, redirecting to login');
+    return <Navigate to="/login" />;
+  }
+  
+  if (!currentUser || currentUser.role !== 'user') {
+    console.log('Invalid user role:', currentUser?.role);
+    authService.logout();
     return <Navigate to="/login" />;
   }
   
@@ -27,19 +40,22 @@ const PrivateRoute = ({ children }) => {
 };
 
 const AdminRoute = ({ children }) => {
-  const token = localStorage.getItem('token');
-  const user = localStorage.getItem('user');
+  const isAuthenticated = authService.isAuthenticated();
+  const currentUser = authService.getCurrentUser();
   
-  if (!token || !user) {
+  console.log('AdminRoute check:', {
+    isAuthenticated,
+    currentUser
+  });
+  
+  if (!isAuthenticated) {
+    console.log('Not authenticated, redirecting to admin login');
     return <Navigate to="/admin-login" />;
   }
   
-  try {
-    const userData = JSON.parse(user);
-    if (userData.role !== 'admin') {
-      return <Navigate to="/admin-login" />;
-    }
-  } catch (err) {
+  if (!currentUser || currentUser.role !== 'admin') {
+    console.log('Invalid admin role:', currentUser?.role);
+    authService.logout();
     return <Navigate to="/admin-login" />;
   }
   
@@ -47,6 +63,48 @@ const AdminRoute = ({ children }) => {
 };
 
 const App = () => {
+  // Check token on app load and setup refresh interval
+  useEffect(() => {
+    const checkToken = () => {
+      if (!authService.isAuthenticated()) {
+        return;
+      }
+
+      // Get token data
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      try {
+        const tokenData = JSON.parse(atob(token.split('.')[1]));
+        const expiryTime = tokenData.exp * 1000;
+        const currentTime = Date.now();
+        const timeToExpiry = expiryTime - currentTime;
+        
+        console.log('Token status:', {
+          expiryTime: new Date(expiryTime).toLocaleString(),
+          currentTime: new Date(currentTime).toLocaleString(),
+          timeToExpiry: Math.round(timeToExpiry / 1000 / 60) + ' minutes'
+        });
+
+        // If token is expired or will expire in next 5 minutes, logout
+        if (timeToExpiry < 5 * 60 * 1000) {
+          console.log('Token expired or expiring soon, logging out');
+          authService.logout();
+          window.location.href = '/login';
+        }
+      } catch (err) {
+        console.error('Error checking token:', err);
+        authService.logout();
+        window.location.href = '/login';
+      }
+    };
+
+    // Check token immediately and every minute
+    checkToken();
+    const interval = setInterval(checkToken, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <BrowserRouter>
       <Routes>

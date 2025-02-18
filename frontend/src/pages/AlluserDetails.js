@@ -29,6 +29,7 @@ import {
   TableRow,
   Grid
 } from '@mui/material';
+import config from '../config';
 import { styled } from '@mui/material/styles';
 import {
   Search as SearchIcon,
@@ -106,15 +107,18 @@ const UserTable = ({ users, onDelete, onRowClick }) => {
               <StyledTableCell component="th" scope="row">
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <Avatar
-                    src={user.avatar}
+                    src={user.avatar ? (user.avatar.startsWith('data:') ? user.avatar : user.avatar.startsWith('http') ? user.avatar : `${config.apiUrl}${user.avatar}`) : undefined}
                     alt={user.name}
                     sx={{ 
                       width: 40, 
                       height: 40,
                       mr: 2,
-                      border: `2px solid ${getRoleColor(user.role)}`
+                      border: `2px solid ${getRoleColor(user.role)}`,
+                      bgcolor: `${getRoleColor(user.role)}40`
                     }}
-                  />
+                  >
+                    {user.name?.charAt(0).toUpperCase()}
+                  </Avatar>
                   <Typography variant="body1">
                     {user.name}
                   </Typography>
@@ -200,7 +204,7 @@ const AlluserDetails = () => {
     const fetchUsers = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:3007/users', {
+        const response = await fetch(`${config.apiUrl}/users`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -234,7 +238,7 @@ const AlluserDetails = () => {
   const handleDeleteConfirm = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3007/users/${deleteDialog.user._id}`, {
+      const response = await fetch(`${config.apiUrl}/users/${deleteDialog.user._id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

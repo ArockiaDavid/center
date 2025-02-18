@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Box, useTheme } from '@mui/material';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import authService from '../api/authService';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import LogoutWarning from './LogoutWarning';
@@ -13,21 +14,35 @@ const COLLAPSED_WIDTH = 65;
 const Layout = () => {
   const theme = useTheme();
   const location = useLocation();
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [expanded, setExpanded] = useState(() => {
     const savedState = localStorage.getItem('sidebarExpanded');
     return savedState === null ? true : savedState === 'true';
   });
-  const [user, setUser] = useState(() => {
-    const userData = localStorage.getItem('user');
-    return userData ? JSON.parse(userData) : null;
-  });
+  const [user, setUser] = useState(authService.getCurrentUser());
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = '/login';
+    authService.logout();
+    navigate('/login', { replace: true });
   };
+
+  // Update user state when auth changes
+  useEffect(() => {
+    const checkAuth = () => {
+      if (!authService.isAuthenticated()) {
+        navigate('/login', { replace: true });
+        return;
+      }
+      const currentUser = authService.getCurrentUser();
+      setUser(currentUser);
+    };
+
+    checkAuth();
+    // Check auth status periodically
+    const interval = setInterval(checkAuth, 60000); // every minute
+    return () => clearInterval(interval);
+  }, [navigate]);
 
   const { showWarning, remainingTime, onStayLoggedIn } = useAutoLogout(handleLogout);
 
@@ -43,6 +58,21 @@ const Layout = () => {
     setExpanded(value);
     localStorage.setItem('sidebarExpanded', value);
   };
+
+  // Handle click outside to collapse sidebar
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Check if click is outside sidebar and header
+      if (!event.target.closest('.sidebar') && !event.target.closest('.header-app-bar')) {
+        setExpanded(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     if (sidebarOpen) {

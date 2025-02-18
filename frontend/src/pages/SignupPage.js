@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import authService from '../api/authService';
+import '../styles/SignupPage.css';
 
 const SignupPage = () => {
   const [formData, setFormData] = useState({
@@ -156,104 +157,31 @@ const SignupPage = () => {
 
   return (
     <Container component="main" maxWidth="sm">
-      <Box
-        sx={{
-          marginTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          minHeight: '80vh',
-          justifyContent: 'center'
-        }}
-      >
-        <Paper 
-          elevation={2} 
-          sx={{ 
-            p: { xs: 3, sm: 6 }, 
-            width: '100%',
-            maxWidth: '450px',
-            borderRadius: 2,
-            border: '1px solid',
-            borderColor: 'divider'
-          }}
-        >
-          <Typography 
-            component="h1" 
-            variant="h5" 
-            sx={{ 
-              fontWeight: 400,
-              mb: 1,
-              textAlign: 'center'
-            }}
-          >
+      <Box className="signup-container">
+        <Paper className="signup-paper" elevation={2}>
+          <Typography component="h1" variant="h5" className="signup-title">
             Create your account
           </Typography>
-          <Typography 
-            variant="body1" 
-            sx={{ 
-              mb: 4,
-              textAlign: 'center',
-              color: 'text.secondary'
-            }}
-          >
+          <Typography variant="body1" className="signup-subtitle">
             to continue to Software Center
           </Typography>
           
           {error && (
-            <Alert 
-              severity="error" 
-              sx={{ 
-                mb: 3,
-                borderRadius: 1,
-                '& .MuiAlert-message': {
-                  color: '#d32f2f'
-                }
-              }}
-              variant="outlined"
-            >
+            <Alert variant="outlined" className="signup-alert error" severity="error">
               {error}
             </Alert>
           )}
 
           {success && (
-            <Alert 
-              severity="success" 
-              sx={{ 
-                mb: 3,
-                borderRadius: 1,
-                '& .MuiAlert-message': {
-                  color: '#2e7d32'
-                }
-              }}
-              variant="outlined"
-            >
+            <Alert variant="outlined" className="signup-alert success" severity="success">
               {success}
             </Alert>
           )}
 
-          <Box 
-            component="form" 
-            onSubmit={handleSubmit}
-          >
+          <Box component="form" onSubmit={handleSubmit}>
             <FormControl 
               fullWidth 
-              margin="normal"
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1,
-                  backgroundColor: 'background.paper',
-                  '&:hover fieldset': {
-                    borderColor: 'text.primary',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderWidth: '2px',
-                    borderColor: '#1a73e8',
-                  }
-                },
-                '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#1a73e8',
-                }
-              }}
+              className="signup-form-control"
             >
               <InputLabel id="role-label">Sign up as</InputLabel>
               <Select
@@ -263,12 +191,15 @@ const SignupPage = () => {
                 value={formData.role}
                 label="Sign up as"
                 onChange={handleChange}
+                className="signup-input"
               >
                 <MenuItem value="user">User</MenuItem>
                 <MenuItem value="admin">Admin</MenuItem>
               </Select>
             </FormControl>
+
             <TextField
+              className="signup-input"
               margin="normal"
               fullWidth
               id="name"
@@ -281,24 +212,10 @@ const SignupPage = () => {
               onBlur={handleBlur}
               error={!!validationErrors.name}
               helperText={validationErrors.name}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1,
-                  backgroundColor: 'background.paper',
-                  '&:hover fieldset': {
-                    borderColor: 'text.primary',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderWidth: '2px',
-                    borderColor: '#1a73e8',
-                  }
-                },
-                '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#1a73e8',
-                }
-              }}
             />
+
             <TextField
+              className="signup-input"
               margin="normal"
               fullWidth
               id="email"
@@ -310,24 +227,10 @@ const SignupPage = () => {
               onBlur={handleBlur}
               error={!!validationErrors.email}
               helperText={validationErrors.email}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1,
-                  backgroundColor: 'background.paper',
-                  '&:hover fieldset': {
-                    borderColor: 'text.primary',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderWidth: '2px',
-                    borderColor: '#1a73e8',
-                  }
-                },
-                '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#1a73e8',
-                }
-              }}
             />
+
             <TextField
+              className="signup-input"
               margin="normal"
               fullWidth
               name="password"
@@ -340,24 +243,10 @@ const SignupPage = () => {
               onBlur={handleBlur}
               error={!!validationErrors.password}
               helperText={validationErrors.password}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1,
-                  backgroundColor: 'background.paper',
-                  '&:hover fieldset': {
-                    borderColor: 'text.primary',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderWidth: '2px',
-                    borderColor: '#1a73e8',
-                  }
-                },
-                '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#1a73e8',
-                }
-              }}
             />
+
             <TextField
+              className="signup-input"
               margin="normal"
               fullWidth
               name="confirmPassword"
@@ -370,58 +259,16 @@ const SignupPage = () => {
               onBlur={handleBlur}
               error={!!validationErrors.confirmPassword}
               helperText={validationErrors.confirmPassword}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1,
-                  backgroundColor: 'background.paper',
-                  '&:hover fieldset': {
-                    borderColor: 'text.primary',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderWidth: '2px',
-                    borderColor: '#1a73e8',
-                  }
-                },
-                '& .MuiInputLabel-root.Mui-focused': {
-                  color: '#1a73e8',
-                }
-              }}
             />
-            <Box sx={{ 
-              display: 'flex', 
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              mt: 4
-            }}>
-              <Link 
-                href="/login" 
-                sx={{
-                  color: '#1a73e8',
-                  textDecoration: 'none',
-                  fontWeight: 500,
-                  fontSize: '0.875rem',
-                  '&:hover': {
-                    textDecoration: 'underline',
-                  }
-                }}
-              >
+
+            <Box className="signup-actions">
+              <Link href="/login" className="signup-link">
                 Sign in instead
               </Link>
               <Button
                 type="submit"
                 variant="contained"
-                sx={{ 
-                  px: 4,
-                  py: 1,
-                  borderRadius: 1,
-                  textTransform: 'none',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  backgroundColor: '#1a73e8',
-                  '&:hover': {
-                    backgroundColor: '#1557b0',
-                  }
-                }}
+                className="signup-button"
               >
                 Create account
               </Button>

@@ -50,13 +50,24 @@ const userSchema = new mongoose.Schema({
 userSchema.pre('save', async function(next) {
   const user = this;
   if (user.isModified('password')) {
-    console.log('Password modified, hashing:');
-    console.log('Original password:', user.password);
-    const hashedPassword = await bcrypt.hash(user.password, 8);
-    console.log('Hashed password:', hashedPassword);
-    user.password = hashedPassword;
+    try {
+      // Check if password is already hashed
+      if (user.password.startsWith('$2a$')) {
+        console.log('Password already hashed, skipping');
+        return next();
+      }
+      
+      console.log('Hashing password');
+      const hashedPassword = await bcrypt.hash(user.password, 8);
+      user.password = hashedPassword;
+      next();
+    } catch (err) {
+      console.error('Error hashing password:', err);
+      next(err);
+    }
+  } else {
+    next();
   }
-  next();
 });
 
 // Compare password method

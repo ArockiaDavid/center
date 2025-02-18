@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import { PhotoCamera as PhotoCameraIcon, ArrowBack as ArrowBackIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import config from '../config';
 
 const AdminProfilePage = () => {
   const navigate = useNavigate();
@@ -70,7 +71,7 @@ const AdminProfilePage = () => {
         formData.append('avatar', blob, 'avatar.jpg');
       }
 
-      const response = await fetch('http://localhost:3007/admin/profile', {
+      const response = await fetch(`${config.apiUrl}/admin/profile`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -113,7 +114,7 @@ const AdminProfilePage = () => {
         return avatar;
       }
       // Otherwise, prepend the API base URL
-      return `http://localhost:3007${avatar}`;
+      return `${config.apiUrl}${avatar}`;
     }
     return null;
   };

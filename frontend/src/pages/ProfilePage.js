@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import { PhotoCamera as PhotoCameraIcon, ArrowBack as ArrowBackIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import config from '../config';
 
 const ProfilePage = () => {
   const navigate = useNavigate();
@@ -61,7 +62,7 @@ const ProfilePage = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3007/users/profile', {
+      const response = await fetch(`${config.apiUrl}/users/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
