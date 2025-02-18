@@ -151,7 +151,33 @@ const SignupPage = () => {
         navigate('/login');
       }, 2000);
     } catch (err) {
-      setError(err.message || 'Failed to create account');
+      console.error('Signup error:', err);
+      
+      // Handle detailed error responses
+      if (err.details) {
+        // Clear any existing validation errors
+        setValidationErrors({
+          name: '',
+          email: '',
+          password: '',
+          confirmPassword: ''
+        });
+        
+        // Set specific field errors
+        Object.entries(err.details).forEach(([field, message]) => {
+          if (message && field in validationErrors) {
+            setValidationErrors(prev => ({
+              ...prev,
+              [field]: message
+            }));
+          }
+        });
+        
+        setError(err.message);
+      } else {
+        // Handle generic errors
+        setError(err.message || 'Failed to create account');
+      }
     }
   };
 

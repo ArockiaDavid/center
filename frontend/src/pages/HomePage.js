@@ -3,7 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import useAutoLogout from '../hooks/useAutoLogout';
 import { installationService } from '../api/installationService';
 import authService from '../api/authService';
-import { Grid, Typography, Box, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
+import { 
+  Grid, 
+  Typography, 
+  Box, 
+  List, 
+  ListItem, 
+  ListItemIcon, 
+  ListItemText,
+  Snackbar,
+  Alert
+} from '@mui/material';
 import Header from '../components/Header';
 import { 
   Code as CodeIcon,
@@ -89,32 +99,98 @@ const HomePage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [installedSoftware, setInstalledSoftware] = useState([]);
   const [user, setUser] = useState(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [installingStates, setInstallingStates] = useState({});
+  const [snackbarState, setSnackbarState] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
 
-  // Load installed software on mount
-  useEffect(() => {
-    const loadInstalledSoftware = async () => {
-      try {
-        const response = await installationService.getInstalledSoftware();
-        const data = Array.isArray(response) ? response : [];
-        setInstalledSoftware(data);
-      } catch (error) {
-        console.error('Error fetching installed software:', error);
-        setInstalledSoftware([]);
-      }
-    };
-
-    if (authService.isAuthenticated()) {
-      loadInstalledSoftware();
+  // Function to load installed software
+  const loadInstalledSoftware = useCallback(async () => {
+    try {
+      const response = await installationService.getInstalledSoftware();
+      const data = Array.isArray(response) ? response : [];
+      console.log('Loaded installed software:', data);
+      setInstalledSoftware(data);
+    } catch (error) {
+      console.error('Error fetching installed software:', error);
+      setInstalledSoftware([]);
     }
   }, []);
 
+  // Function to scan and load software
+  const scanAndLoadSoftware = useCallback(async () => {
+    if (isScanning) return;
+    
+    try {
+      setIsScanning(true);
+      console.log('Starting software scan...');
+      
+      // First scan for installed software
+      const scanResult = await installationService.scanInstalledSoftware();
+      console.log('Scan completed:', scanResult);
+      
+      // Then get the updated list
+      await loadInstalledSoftware();
+    } catch (error) {
+      console.error('Error during software scan:', error);
+    } finally {
+      setIsScanning(false);
+    }
+  }, [isScanning, loadInstalledSoftware]);
+
+  // Initial load and scan
+  useEffect(() => {
+    const initializeSoftware = async () => {
+      if (!authService.isAuthenticated()) return;
+
+      try {
+        // First load existing data
+        await loadInstalledSoftware();
+        
+        // Then do a scan if needed
+        if (!isScanning) {
+          setIsScanning(true);
+          await installationService.scanInstalledSoftware();
+          await loadInstalledSoftware(); // Refresh after scan
+          setIsScanning(false);
+        }
+      } catch (error) {
+        console.error('Error initializing software:', error);
+        setIsScanning(false);
+      }
+    };
+
+    initializeSoftware();
+  }, [authService.isAuthenticated()]);
+
+  // Periodic refresh of installed software without scanning
+  useEffect(() => {
+    if (!authService.isAuthenticated()) return;
+
+    const interval = setInterval(() => {
+      if (!isScanning) {
+        loadInstalledSoftware();
+      }
+    }, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [loadInstalledSoftware, isScanning]);
+
   // Filter software based on category and search term
   const filteredSoftware = softwareList
-    .map(software => ({
-      ...software,
-      isInstalled: installedSoftware.some(installed => installed.appId === software.id),
-      version: installedSoftware.find(installed => installed.appId === software.id)?.version
-    }))
+    .map(software => {
+      const installedApp = installedSoftware.find(installed => installed.appId === software.id);
+      console.log(`Software ${software.id}:`, installedApp ? 'installed' : 'not installed');
+      return {
+        ...software,
+        isInstalled: Boolean(installedApp),
+        version: installedApp?.version || '1.0.0',
+        appId: software.id // Ensure appId is set for API calls
+      };
+    })
     .filter(software => {
       const matchesCategory = selectedCategory === 'all' || 
         software.category.toLowerCase() === categories.find(c => c.id === selectedCategory)?.name.toLowerCase();
@@ -141,30 +217,109 @@ const HomePage = () => {
 
   const handleInstall = useCallback(async (software) => {
     try {
+      // Check if software is already installed
+      const isAlreadyInstalled = installedSoftware.some(
+        installed => installed.appId === software.id
+      );
+
+      if (isAlreadyInstalled) {
+        setSnackbarState({
+          open: true,
+          message: `${software.name} is already installed`,
+          severity: 'info'
+        });
+        return;
+      }
+
+      // Set installing state
+      setInstallingStates(prev => ({ ...prev, [software.id]: true }));
+
+      // First check if the package exists in Homebrew
+      const commandCheck = await installationService.checkCommand(software.command);
+      if (!commandCheck.exists) {
+        setSnackbarState({
+          open: true,
+          message: `${software.name} is not found in Homebrew`,
+          severity: 'error'
+        });
+        setInstallingStates(prev => ({ ...prev, [software.id]: false }));
+        return;
+      }
+
+      // Proceed with installation
       await installationService.installSoftware({
         id: software.id,
         name: software.name,
-        version: software.version || '1.0.0'
+        version: commandCheck.version || '1.0.0'
       });
+
+      // Show success message
+      setSnackbarState({
+        open: true,
+        message: `${software.name} has been successfully installed`,
+        severity: 'success'
+      });
+
       // Refresh installed software list
-      const response = await installationService.getInstalledSoftware();
-      const data = Array.isArray(response) ? response : [];
-      setInstalledSoftware(data);
+      await loadInstalledSoftware();
     } catch (error) {
       console.error('Error installing software:', error);
+      const errorMessage = error.response?.data?.message || error.message;
+      setSnackbarState({
+        open: true,
+        message: `Failed to install ${software.name}: ${errorMessage}`,
+        severity: 'error'
+      });
+    } finally {
+      setInstallingStates(prev => ({ ...prev, [software.id]: false }));
     }
-  }, []);
+  }, [loadInstalledSoftware, installedSoftware]);
+
+  const [checkingStates, setCheckingStates] = useState({});
 
   const handleCheck = useCallback(async (software) => {
+    if (checkingStates[software.id]) return;
+
     try {
+      setCheckingStates(prev => ({ ...prev, [software.id]: true }));
       const updateInfo = await installationService.checkForUpdates(software);
-      if (updateInfo?.hasUpdate) {
-        // Handle update available
-        console.log('Update available:', updateInfo.latestVersion);
+
+      if (!updateInfo.isUpdated) {
+        setSnackbarState({
+          open: true,
+          message: `Unable to verify ${software.name} version`,
+          severity: 'warning'
+        });
+        return;
+      }
+
+      if (updateInfo.hasUpdate) {
+        setSnackbarState({
+          open: true,
+          message: `Update available for ${software.name}: v${updateInfo.latestVersion}`,
+          severity: 'info'
+        });
+      } else {
+        setSnackbarState({
+          open: true,
+          message: `${software.name} is up to date (v${updateInfo.currentVersion})`,
+          severity: 'success'
+        });
       }
     } catch (error) {
       console.error('Error checking for updates:', error);
+      setSnackbarState({
+        open: true,
+        message: `Failed to check for updates: ${error.message}`,
+        severity: 'error'
+      });
+    } finally {
+      setCheckingStates(prev => ({ ...prev, [software.id]: false }));
     }
+  }, [checkingStates]);
+
+  const handleSnackbarClose = useCallback(() => {
+    setSnackbarState(prev => ({ ...prev, open: false }));
   }, []);
 
   // Check authentication and user role
@@ -291,11 +446,29 @@ const HomePage = () => {
                   {...software} 
                   onInstall={() => handleInstall(software)}
                   onCheck={() => handleCheck(software)}
+                  isScanning={isScanning}
+                  isInstalling={installingStates[software.id]}
+                  isChecking={checkingStates[software.id]}
                 />
               </Grid>
             ))}
           </Grid>
       </Box>
+      <Snackbar
+        open={snackbarState.open}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={handleSnackbarClose}
+          severity={snackbarState.severity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbarState.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

@@ -230,10 +230,61 @@ const authService = {
 
   signup: async (userData) => {
     try {
+      console.log('AuthService: Attempting signup with:', { 
+        email: userData.email,
+        name: userData.name,
+        role: userData.role 
+      });
+      
       const response = await axiosInstance.post('/auth/signup', userData);
+      console.log('AuthService: Signup response:', response.data);
       return response.data;
     } catch (error) {
-      throw error.message || 'Failed to signup';
+      console.error('AuthService: Signup error:', error);
+      
+      if (error.response) {
+        console.error('AuthService: Server response:', error.response.data);
+        
+        // Use server's detailed error message if available
+        if (error.response.data.details) {
+          throw {
+            message: error.response.data.message,
+            details: error.response.data.details
+          };
+        }
+        
+        // Fallback error messages based on status
+        switch (error.response.status) {
+          case 400:
+            throw {
+              message: error.response.data.message || 'Invalid signup data. Please check your input.',
+              details: { type: 'invalid_input' }
+            };
+          case 409:
+            throw {
+              message: 'Email already registered',
+              details: { type: 'email_exists' }
+            };
+          default:
+            throw {
+              message: error.response.data.message || 'Signup failed. Please try again.',
+              details: { type: 'signup_failed' }
+            };
+        }
+      }
+      
+      if (error.request) {
+        console.error('AuthService: Network error:', error.request);
+        throw {
+          message: 'Unable to connect to server. Please check your network connection.',
+          details: { type: 'network_error' }
+        };
+      }
+      
+      throw {
+        message: 'An unexpected error occurred. Please try again.',
+        details: { type: 'unknown_error', error: error.toString() }
+      };
     }
   },
 

@@ -61,7 +61,7 @@ class InstallationService {
 
   async checkForUpdates(software) {
     try {
-      const response = await this.api.get(`/${software.id}/updates`);
+      const response = await this.api.get(`/${software.appId || software.id}/updates`);
       return response.data;
     } catch (error) {
       console.error('Error checking for updates:', error);
@@ -71,7 +71,7 @@ class InstallationService {
 
   async updateSoftware(software) {
     try {
-      const response = await this.api.put(`/${software.id}`, {
+      const response = await this.api.put(`/${software.appId || software.id}`, {
         version: software.version
       });
       return response.data;
@@ -83,7 +83,7 @@ class InstallationService {
 
   async uninstallSoftware(software) {
     try {
-      const response = await this.api.delete(`/${software.id}`);
+      const response = await this.api.delete(`/${software.appId || software.id}`);
       return response.data;
     } catch (error) {
       console.error('Error uninstalling software:', error);
@@ -91,14 +91,20 @@ class InstallationService {
     }
   }
 
-  // Helper method to check if a command exists on the system
+  // Helper method to check if a package exists in Homebrew
   async checkCommand(command) {
     try {
       const response = await this.api.post('/check-command', { command });
-      return response.data.exists;
+      return {
+        exists: response.data.exists,
+        version: response.data.version
+      };
     } catch (error) {
-      console.error('Error checking command:', error);
-      return false;
+      console.error('Error checking Homebrew package:', error);
+      return {
+        exists: false,
+        version: '1.0.0'
+      };
     }
   }
 }

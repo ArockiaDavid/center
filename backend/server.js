@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const path = require('path');
+const fs = require('fs');
 const jwt = require('jsonwebtoken');
 const User = require('./src/models/User');
 const SystemConfig = require('./src/models/SystemConfig');
@@ -29,9 +30,32 @@ console.log('Environment:', {
   PORT
 });
 
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, 'public', 'uploads', 'avatars');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 // Serve static files from public directory
-app.use(express.static('public'));
-app.use('/uploads', express.static(path.join(__dirname, '..', 'public', 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Log static file access
+app.use((req, res, next) => {
+  if (req.url.startsWith('/uploads')) {
+    console.log('Static file request:', {
+      url: req.url,
+      path: path.join(__dirname, 'public', req.url)
+    });
+  }
+  next();
+});
+
+// Log static file directories
+console.log('Static file directories:', {
+  public: path.join(__dirname, 'public'),
+  uploads: path.join(__dirname, 'public', 'uploads')
+});
 
 // CORS configuration for development
 const corsOptions = process.env.NODE_ENV === 'development' 

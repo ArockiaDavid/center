@@ -160,24 +160,98 @@ router.post('/login', async (req, res) => {
 
 router.post('/signup', async (req, res) => {
   try {
+    console.log('Signup attempt:', { 
+      email: req.body?.email,
+      name: req.body?.name,
+      role: req.body?.role,
+      hasPassword: !!req.body?.password
+    });
+
     const { name, email, password, role } = req.body;
 
-    if (!email) {
-      return res.status(400).json({ message: 'Email is required' });
+    // Validate required fields
+    if (!name || !email || !password) {
+      return res.status(400).json({ 
+        message: 'Missing required fields',
+        details: {
+          name: !name ? 'Name is required' : null,
+          email: !email ? 'Email is required' : null,
+          password: !password ? 'Password is required' : null
+        }
+      });
     }
 
+    // Validate email format
+    if (!email.endsWith('@piramal.com')) {
+      return res.status(400).json({
+        message: 'Invalid email format',
+        details: {
+          email: 'Only @piramal.com email addresses are allowed'
+        }
+      });
+    }
+
+    // Validate password length
+    if (password.length < 6) {
+      return res.status(400).json({
+        message: 'Invalid password',
+        details: {
+          password: 'Password must be at least 6 characters long'
+        }
+      });
+    }
+
+    // Validate role
+    if (role && !['user', 'admin'].includes(role)) {
+      return res.status(400).json({
+        message: 'Invalid role',
+        details: {
+          role: 'Role must be either "user" or "admin"'
+        }
+      });
+    }
+
+    // Check for existing user
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: 'Email already registered' });
+      return res.status(400).json({ 
+        message: 'Email already registered',
+        details: {
+          email: 'An account with this email already exists'
+        }
+      });
     }
 
-    const user = new User({ name, email, password, role });
+    // Create user with default role if not specified
+    const user = new User({ 
+      name, 
+      email, 
+      password, 
+      role: role || 'user'
+    });
     await user.save();
 
-    res.status(201).json({ message: 'User created successfully' });
+    console.log('User created successfully:', {
+      id: user._id,
+      email: user.email,
+      role: user.role
+    });
+
+    res.status(201).json({ 
+      message: 'User created successfully',
+      details: {
+        email: email,
+        role: role || 'user'
+      }
+    });
   } catch (error) {
     console.error('Error in signup:', error);
-    res.status(500).json({ message: 'Error creating user' });
+    res.status(500).json({ 
+      message: 'Error creating user',
+      details: {
+        error: error.message
+      }
+    });
   }
 });
 

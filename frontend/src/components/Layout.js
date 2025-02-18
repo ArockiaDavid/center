@@ -20,7 +20,22 @@ const Layout = () => {
     const savedState = localStorage.getItem('sidebarExpanded');
     return savedState === null ? true : savedState === 'true';
   });
-  const [user, setUser] = useState(authService.getCurrentUser());
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    // Initial user load
+    setUser(authService.getCurrentUser());
+
+    // Listen for user updates
+    const handleUserUpdate = (event) => {
+      setUser(event.detail);
+    };
+
+    window.addEventListener('userUpdated', handleUserUpdate);
+    return () => {
+      window.removeEventListener('userUpdated', handleUserUpdate);
+    };
+  }, []);
 
   const handleLogout = () => {
     authService.logout();

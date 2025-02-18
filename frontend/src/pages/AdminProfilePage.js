@@ -43,13 +43,34 @@ const AdminProfilePage = () => {
   const handleAvatarChange = (event) => {
     const file = event.target.files[0];
     if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setError('Please select an image file');
+        return;
+      }
+
+      // Validate file size (e.g., max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Image size should be less than 5MB');
+        return;
+      }
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setAvatar(reader.result);
+        setError(''); // Clear any previous errors
+      };
+      reader.onerror = () => {
+        setError('Error reading file');
       };
       reader.readAsDataURL(file);
     }
   };
+
+  // Reset error when component unmounts
+  useEffect(() => {
+    return () => setError('');
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -85,20 +106,27 @@ const AdminProfilePage = () => {
         throw new Error(data.message || 'Failed to update profile');
       }
 
-      // Update local storage with new user data, preserving the role
+      // Update user data
       const updatedUser = { 
         ...user, 
         name, 
         email, 
         avatar: data.avatar,
-        role: 'admin' // Ensure role is preserved
+        role: 'admin'
       };
       localStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
+      setAvatar(data.avatar);
+
+      // Dispatch custom event to notify Header
+      window.dispatchEvent(new CustomEvent('userUpdated', { 
+        detail: updatedUser 
+      }));
       setSuccess('Profile updated successfully');
       
+      // Navigate to admin dashboard after a short delay
       setTimeout(() => {
-        navigate('/all-user');
+        window.location.replace('/admin-dashboard');
       }, 1500);
     } catch (err) {
       setError(err.message);
@@ -109,11 +137,15 @@ const AdminProfilePage = () => {
 
   const getAvatarUrl = () => {
     if (avatar) {
-      // If avatar is already a base64 string or full URL, return it
-      if (avatar.startsWith('data:') || avatar.startsWith('http')) {
+      // If avatar is a base64 string from file selection
+      if (avatar.startsWith('data:')) {
         return avatar;
       }
-      // Otherwise, prepend the API base URL
+      // If avatar is a full URL
+      if (avatar.startsWith('http')) {
+        return avatar;
+      }
+      // If avatar is a server path
       return `${config.apiUrl}${avatar}`;
     }
     return null;

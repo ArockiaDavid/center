@@ -10,7 +10,7 @@ const { scanInstalledSoftware } = require('../services/softwareScanService');
 // Get installed software for current user
 router.get('/', auth, async (req, res) => {
   try {
-    const software = await InstalledSoftware.find({ user: req.user._id });
+    const software = await InstalledSoftware.find({ userId: req.user._id });
     res.json(software);
   } catch (error) {
     console.error('Error fetching installed software:', error);
@@ -41,25 +41,30 @@ router.post('/check-command', auth, async (req, res) => {
       return res.status(400).json({ message: 'Command is required' });
     }
 
-    // Use 'which' command to check if the command exists
-    const { stdout } = await execAsync(`which ${command}`).catch(() => ({ stdout: '' }));
-    const exists = Boolean(stdout.trim());
-
-    // If command exists, try to get its version
-    let version = '1.0.0';
-    if (exists) {
-      try {
-        const { stdout: versionOutput } = await execAsync(`${command} --version`);
-        const versionMatch = versionOutput.match(/\d+\.\d+\.\d+/);
-        if (versionMatch) {
-          version = versionMatch[0];
-        }
-      } catch (error) {
-        console.error('Error getting version:', error);
+    // Check if package exists in brew
+    try {
+      // First try regular brew
+      const { stdout: brewStdout } = await execAsync(`brew list ${command} 2>/dev/null`);
+      if (brewStdout.trim()) {
+        const { stdout: versionOutput } = await execAsync(`brew list --versions ${command}`);
+        const version = versionOutput.split(' ')[1] || '1.0.0';
+        return res.json({ exists: true, version });
       }
-    }
 
-    res.json({ exists, version });
+      // Then try brew cask
+      const { stdout: caskStdout } = await execAsync(`brew list --cask ${command} 2>/dev/null`);
+      if (caskStdout.trim()) {
+        const { stdout: versionOutput } = await execAsync(`brew list --cask --versions ${command}`);
+        const version = versionOutput.split(' ')[1] || '1.0.0';
+        return res.json({ exists: true, version });
+      }
+
+      // Not found in brew
+      return res.json({ exists: false, version: '1.0.0' });
+    } catch (error) {
+      console.error('Error checking brew:', error);
+      return res.json({ exists: false, version: '1.0.0' });
+    }
   } catch (error) {
     console.error('Error checking command:', error);
     res.status(500).json({ message: 'Error checking command' });
@@ -73,7 +78,7 @@ router.post('/', auth, async (req, res) => {
 
     // Check if software is already installed
     const existingSoftware = await InstalledSoftware.findOne({
-      user: req.user._id,
+      userId: req.user._id,
       appId
     });
 
@@ -81,16 +86,24 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ message: 'Software already installed' });
     }
 
-    // Check if the command exists on the system
-    const { stdout } = await execAsync(`which ${appId}`).catch(() => ({ stdout: '' }));
-    const isInstalled = Boolean(stdout.trim());
-
-    if (!isInstalled) {
-      return res.status(404).json({ message: 'Software not found on system' });
+    // Check if package exists in brew
+    try {
+      // First try regular brew
+      const { stdout: brewStdout } = await execAsync(`brew list ${appId} 2>/dev/null`);
+      if (!brewStdout.trim()) {
+        // Then try brew cask
+        const { stdout: caskStdout } = await execAsync(`brew list --cask ${appId} 2>/dev/null`);
+        if (!caskStdout.trim()) {
+          return res.status(404).json({ message: 'Software not found in Homebrew' });
+        }
+      }
+    } catch (error) {
+      console.error('Error checking brew:', error);
+      return res.status(404).json({ message: 'Error checking Homebrew' });
     }
 
     const software = new InstalledSoftware({
-      user: req.user._id,
+      userId: req.user._id,
       userEmail: req.user.email,
       userName: req.user.name,
       appId,
@@ -113,35 +126,61 @@ router.post('/', auth, async (req, res) => {
 router.get('/:appId/updates', auth, async (req, res) => {
   try {
     const { appId } = req.params;
-    const software = await InstalledSoftware.findOne({
-      user: req.user._id,
-      appId
-    });
+    
+    try {
+      // First check if it's a regular brew package
+      const { stdout: brewList } = await execAsync(`brew list ${appId} 2>/dev/null`).catch(() => ({ stdout: '' }));
+      if (brewList.trim()) {
+        // Get current version
+        const { stdout: currentVersionOutput } = await execAsync(`brew list --versions ${appId}`);
+        const currentVersion = currentVersionOutput.split(' ')[1] || '1.0.0';
 
-    if (!software) {
-      return res.status(404).json({ message: 'Software not found' });
+        // Get latest version and check if outdated
+        const { stdout: infoOutput } = await execAsync(`brew info ${appId} --json=v2`);
+        const info = JSON.parse(infoOutput);
+        const latestVersion = info.formulae[0].versions.stable;
+
+        // Check if outdated
+        const { stdout: outdatedOutput } = await execAsync(`brew outdated ${appId} 2>/dev/null`).catch(() => ({ stdout: '' }));
+        const hasUpdate = Boolean(outdatedOutput.trim());
+        
+        return res.json({
+          hasUpdate,
+          currentVersion: currentVersion,
+          latestVersion: latestVersion,
+          isUpdated: true
+        });
+      }
+
+      // Then check if it's a cask package
+      const { stdout: caskList } = await execAsync(`brew list --cask ${appId} 2>/dev/null`).catch(() => ({ stdout: '' }));
+      if (caskList.trim()) {
+        // Get current version
+        const { stdout: currentVersionOutput } = await execAsync(`brew list --cask --versions ${appId}`);
+        const currentVersion = currentVersionOutput.split(' ')[1] || '1.0.0';
+
+        // Get latest version and check if outdated
+        const { stdout: infoOutput } = await execAsync(`brew info --cask ${appId} --json=v2`);
+        const info = JSON.parse(infoOutput);
+        const latestVersion = info.casks[0].version;
+
+        // Check if outdated
+        const { stdout: outdatedOutput } = await execAsync(`brew outdated --cask ${appId} 2>/dev/null`).catch(() => ({ stdout: '' }));
+        const hasUpdate = Boolean(outdatedOutput.trim());
+        
+        return res.json({
+          hasUpdate,
+          currentVersion: currentVersion,
+          latestVersion: latestVersion,
+          isUpdated: true
+        });
+      }
+
+      return res.status(404).json({ message: 'Software not found in Homebrew', isUpdated: false });
+    } catch (error) {
+      console.error('Error checking brew version:', error);
+      return res.status(500).json({ message: 'Error checking for updates', error: error.message });
     }
-
-    // Check if the command exists and get its version
-    const { stdout } = await execAsync(`which ${appId}`).catch(() => ({ stdout: '' }));
-    if (!stdout.trim()) {
-      return res.status(404).json({ message: 'Software not found on system' });
-    }
-
-    // Get current version from system
-    const { stdout: versionOutput } = await execAsync(`${appId} --version`).catch(() => ({ stdout: '1.0.0' }));
-    const versionMatch = versionOutput.match(/\d+\.\d+\.\d+/);
-    const currentVersion = versionMatch ? versionMatch[0] : '1.0.0';
-
-    // Update last check time
-    software.lastUpdateCheck = new Date();
-    await software.save();
-
-    res.json({
-      hasUpdate: currentVersion !== software.version,
-      currentVersion: software.version,
-      latestVersion: currentVersion
-    });
   } catch (error) {
     console.error('Error checking for updates:', error);
     res.status(500).json({ message: 'Error checking for updates' });
@@ -155,7 +194,7 @@ router.put('/:appId', auth, async (req, res) => {
     const { version } = req.body;
 
     const software = await InstalledSoftware.findOne({
-      user: req.user._id,
+      userId: req.user._id,
       appId
     });
 
@@ -183,7 +222,7 @@ router.get('/user/:userId', auth, async (req, res) => {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    const software = await InstalledSoftware.find({ user: userId });
+    const software = await InstalledSoftware.find({ userId });
     res.json(software);
   } catch (error) {
     console.error('Error fetching installed software:', error);
@@ -196,7 +235,7 @@ router.delete('/:appId', auth, async (req, res) => {
   try {
     const { appId } = req.params;
     const software = await InstalledSoftware.findOne({
-      user: req.user._id,
+      userId: req.user._id,
       appId
     });
 

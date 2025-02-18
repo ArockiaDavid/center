@@ -10,11 +10,12 @@ const router = express.Router();
 // Configure multer for avatar upload
 const storage = multer.diskStorage({
   destination: function(req, file, cb) {
-    const uploadDir = 'public/uploads/avatars';
+    const uploadDir = path.join(__dirname, '../../public/uploads/avatars');
     // Create directory if it doesn't exist
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
+    // Use absolute path for storage
     cb(null, uploadDir);
   },
   filename: function(req, file, cb) {
@@ -72,14 +73,15 @@ router.put('/profile', auth, upload.single('avatar'), async (req, res) => {
     if (req.file) {
       // Delete old avatar if exists
       if (user.avatar) {
-        const oldAvatarPath = path.join('public', user.avatar);
+        const oldAvatarPath = path.join(__dirname, '../../public', user.avatar);
         if (fs.existsSync(oldAvatarPath)) {
           fs.unlinkSync(oldAvatarPath);
         }
       }
 
-      // Save new avatar path
+      // Save new avatar path with correct URL structure
       user.avatar = `/uploads/avatars/${req.file.filename}`;
+      console.log('New avatar path:', user.avatar);
     }
 
     await user.save();
@@ -91,14 +93,16 @@ router.put('/profile', auth, upload.single('avatar'), async (req, res) => {
     delete userObject.resetPasswordExpires;
 
     // Add full URL to avatar
-
-    let BASE_URL = process.env.BACKEND;
-    if (process.env.NODE_ENV === "production") {
-        BASE_URL = `${req.protocol}://${req.get('host')}`;
-    }
     if (userObject.avatar) {
-      userObject.avatar = `${BASE_URL}${userObject.avatar}`;
+      userObject.avatar = `http://localhost:3007${userObject.avatar}`;
+      console.log('Avatar URL:', userObject.avatar);
     }
+
+    console.log('Updated admin profile:', {
+      id: userObject._id,
+      email: userObject.email,
+      avatar: userObject.avatar
+    });
 
     res.json(userObject);
   } catch (error) {    console.error('Admin profile update error:', error);

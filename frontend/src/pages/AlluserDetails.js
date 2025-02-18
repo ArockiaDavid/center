@@ -102,7 +102,15 @@ const UserTable = ({ users, onDelete, onRowClick }) => {
           {users.map((user) => (
             <StyledTableRow 
               key={user._id}
-              onClick={() => onRowClick(user._id)}
+              onClick={() => user.role !== 'admin' ? onRowClick(user._id) : null}
+              sx={{
+                ...user.role === 'admin' && {
+                  cursor: 'default !important',
+                  '&:hover': {
+                    backgroundColor: 'inherit !important'
+                  }
+                }
+              }}
             >
               <StyledTableCell component="th" scope="row">
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -139,25 +147,27 @@ const UserTable = ({ users, onDelete, onRowClick }) => {
                 />
               </StyledTableCell>
               <StyledTableCell align="right">
-                <IconButton
-                  color="primary"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRowClick(user._id);
-                  }}
-                >
-                  <VisibilityIcon />
-                </IconButton>
                 {user.role !== 'admin' && (
-                  <IconButton
-                    color="error"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete(user);
-                    }}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
+                  <>
+                    <IconButton
+                      color="primary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRowClick(user._id);
+                      }}
+                    >
+                      <VisibilityIcon />
+                    </IconButton>
+                    <IconButton
+                      color="error"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(user);
+                      }}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </>
                 )}
               </StyledTableCell>
             </StyledTableRow>

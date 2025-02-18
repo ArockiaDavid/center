@@ -53,23 +53,22 @@ const appConfig = {
   }
 };
 
-const getBrewName = (appId) => {
-  return appConfig[appId]?.brewName || appId;
-};
-
-const getAppPath = (appId) => {
-  return appConfig[appId]?.appPath;
-};
-
 const checkAppInstalled = async (appId) => {
-  const appPath = getAppPath(appId);
-  if (!appPath) {
+  const brewName = appConfig[appId]?.brewName;
+  if (!brewName) {
     return false;
   }
 
   try {
-    await promiseExec(`test -e "${appPath}" && echo "exists"`);
-    return true;
+    // First try checking with brew list
+    const { stdout } = await promiseExec(`brew list ${brewName} 2>/dev/null`);
+    if (stdout.trim()) {
+      return true;
+    }
+
+    // If not found in brew list, check brew cask list
+    const { stdout: caskStdout } = await promiseExec(`brew list --cask ${brewName} 2>/dev/null`);
+    return Boolean(caskStdout.trim());
   } catch (error) {
     return false;
   }
@@ -98,10 +97,18 @@ const scanInstalledSoftware = async (userId) => {
     // Get versions for installed apps
     for (const app of installedApps) {
       try {
-        const versionsOutput = await promiseExec(`brew list --cask --versions ${app.brewName}`);
-        const version = versionsOutput.split(' ')[1] || '1.0.0';
-        app.version = version;
+        // Try getting version from brew cask first
+        const { stdout: caskVersion } = await promiseExec(`brew list --cask --versions ${app.brewName} 2>/dev/null`).catch(() => ({ stdout: '' }));
+        if (caskVersion.trim()) {
+          app.version = caskVersion.split(' ')[1] || '1.0.0';
+          continue;
+        }
+
+        // If not a cask, try regular brew
+        const { stdout: brewVersion } = await promiseExec(`brew list --versions ${app.brewName} 2>/dev/null`).catch(() => ({ stdout: '' }));
+        app.version = brewVersion.split(' ')[1] || '1.0.0';
       } catch (error) {
+        console.error(`Error getting version for ${app.brewName}:`, error);
         app.version = '1.0.0';
       }
     }
@@ -109,7 +116,7 @@ const scanInstalledSoftware = async (userId) => {
     // Update database for each installed software
     for (const app of installedApps) {
       let software = await InstalledSoftware.findOne({
-        user: userId,
+        userId: userId,
         appId: app.appId
       });
 
@@ -123,25 +130,29 @@ const scanInstalledSoftware = async (userId) => {
       } else {
         // Create new record
         software = new InstalledSoftware({
-          user: userId,
+          userId: userId,
           userName: user.name,
           userEmail: user.email,
           appId: app.appId,
           name: app.brewName,
           version: app.version,
-          status: 'installed'
+          status: 'installed',
+          installDate: new Date(),
+          lastUpdateCheck: new Date()
         });
       }
 
       await software.save();
+      console.log(`Saved software record for ${app.brewName}`);
     }
 
     // Remove records for uninstalled software
     const installedAppIds = installedApps.map(app => app.appId);
     await InstalledSoftware.deleteMany({
-      user: userId,
+      userId: userId,
       appId: { $nin: installedAppIds }
     });
+    console.log('Cleaned up uninstalled software records');
 
     return true;
   } catch (error) {
