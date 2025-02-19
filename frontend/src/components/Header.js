@@ -57,10 +57,10 @@ const Header = ({ user, onLogout, onSidebarToggle, onSearch }) => {
 
   const getAvatarUrl = () => {
     if (user?.avatar) {
-      if (user.avatar.startsWith('data:') || user.avatar.startsWith('http')) {
-        return user.avatar;
-      }
-      return `${config.apiUrl}${user.avatar}`;
+      if (user.avatar.startsWith('data:')) return user.avatar;
+      if (user.avatar.startsWith('http')) return user.avatar;
+      if (user.avatar.startsWith('/')) return `${config.apiUrl}${user.avatar}`;
+      return `${config.apiUrl}/uploads/${user.avatar}`;
     }
     return null;
   };

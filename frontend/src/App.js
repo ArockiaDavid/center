@@ -12,8 +12,8 @@ import AdminDashboard from './pages/AdminDashboard';
 import AlluserDetails from './pages/AlluserDetails';
 import UserDetailsPage from './pages/UserDetailsPage';
 import ApplicationManagement from './pages/ApplicationManagement';
-import ProfilePage from './pages/ProfilePage';
-import AdminProfilePage from './pages/AdminProfilePage';
+import UserProfilePage from './pages/UserProfilePage';
+import AdminProfilePage from './pages/NewAdminProfilePage';
 import './styles/variables.css';
 
 const PrivateRoute = ({ children }) => {
@@ -122,7 +122,7 @@ const App = () => {
           </PrivateRoute>
         }>
           <Route path="/home" element={<HomePage />} />
-          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/profile" element={<UserProfilePage />} />
           <Route path="/" element={<Navigate to="/home" />} />
         </Route>
 

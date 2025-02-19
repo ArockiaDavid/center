@@ -12,13 +12,17 @@ import {
   ListItemIcon, 
   ListItemText,
   Snackbar,
-  Alert
+  Alert,
+  Button
 } from '@mui/material';
 import Header from '../components/Header';
 import { 
   Code as CodeIcon,
-  Language as LanguageIcon,
-  Build as BuildIcon
+  Terminal as TerminalIcon,
+  Build as BuildIcon,
+  Refresh as RefreshIcon,
+  Apps as AppsIcon,
+  Storage as StorageIcon
 } from '@mui/icons-material';
 import AppCard from '../components/AppCard';
 import LogoutWarning from '../components/LogoutWarning';
@@ -26,78 +30,29 @@ import '../styles/HomePage.css';
 
 const categories = [
   { id: 'all', name: 'All Software', icon: <BuildIcon /> },
-  { id: 'development', name: 'Development', icon: <CodeIcon /> },
-  { id: 'internet', name: 'Internet', icon: <LanguageIcon /> }
+  { id: 'ide', name: 'IDEs & Editors', icon: <CodeIcon /> },
+  { id: 'language', name: 'Programming Languages', icon: <TerminalIcon /> },
+  { id: 'tool', name: 'Development Tools', icon: <AppsIcon /> },
+  { id: 'database', name: 'Database Tools', icon: <StorageIcon /> }
 ];
 
-const softwareList = [
-  {
-    id: 'sublime-text',
-    name: 'Sublime Text',
-    developer: 'Sublime HQ',
-    description: 'A sophisticated text editor for code, markup and prose',
-    icon: 'https://www.sublimetext.com/images/icon.png',
-    rating: 4.8,
-    category: 'Development',
-    command: 'subl'
-  },
-  {
-    id: 'visual-studio-code',
-    name: 'Visual Studio Code',
-    developer: 'Microsoft',
-    description: 'Free and powerful source code editor',
-    icon: 'https://code.visualstudio.com/assets/images/code-stable.png',
-    rating: 4.9,
-    category: 'Development',
-    command: 'code'
-  },
-  {
-    id: 'node',
-    name: 'Node.js',
-    developer: 'OpenJS Foundation',
-    description: 'JavaScript runtime built on Chrome\'s V8 JavaScript engine',
-    icon: 'https://nodejs.org/static/images/logo.svg',
-    rating: 4.8,
-    category: 'Development',
-    command: 'node'
-  },
-  {
-    id: 'postman',
-    name: 'Postman',
-    developer: 'Postman Inc.',
-    description: 'API platform for building and using APIs',
-    icon: 'https://cdn.worldvectorlogo.com/logos/postman.svg',
-    rating: 4.7,
-    category: 'Development',
-    command: 'postman'
-  },
-  {
-    id: 'docker',
-    name: 'Docker',
-    developer: 'Docker Inc.',
-    description: 'Platform for developing, shipping, and running applications',
-    icon: 'https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png',
-    rating: 4.8,
-    category: 'Development',
-    command: 'docker'
-  },
-  {
-    id: 'google-chrome',
-    name: 'Google Chrome',
-    developer: 'Google',
-    description: 'Fast and secure web browser',
-    icon: 'https://www.google.com/chrome/static/images/chrome-logo.svg',
-    rating: 4.5,
-    category: 'Internet',
-    command: 'google-chrome'
-  }
-];
+// Software type mapping
+const getSoftwareType = (software) => {
+  const ides = ['visual-studio-code', 'pycharm-ce', 'intellij-idea-ce', 'eclipse-ide', 'webstorm', 'sublime-text', 'visual-studio'];
+  const languages = ['python', 'java', 'node', 'r'];
+  const databases = ['dbeaver-community', 'studio-3t'];
+  
+  if (ides.includes(software.id)) return 'ide';
+  if (languages.includes(software.id)) return 'language';
+  if (databases.includes(software.id)) return 'database';
+  return 'tool';
+};
 
 const HomePage = () => {
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [installedSoftware, setInstalledSoftware] = useState([]);
+  const [software, setSoftware] = useState([]);
   const [user, setUser] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
   const [installingStates, setInstallingStates] = useState({});
@@ -107,16 +62,25 @@ const HomePage = () => {
     severity: 'success'
   });
 
-  // Function to load installed software
-  const loadInstalledSoftware = useCallback(async () => {
+  // Function to load software
+  const loadSoftware = useCallback(async () => {
     try {
       const response = await installationService.getInstalledSoftware();
       const data = Array.isArray(response) ? response : [];
-      console.log('Loaded installed software:', data);
-      setInstalledSoftware(data);
+      console.log('Loaded software:', data);
+      // Ensure each software item has the required properties
+      const processedData = data.map(s => ({
+        ...s,
+        id: s.id || s.appId, // Use appId as fallback
+        appId: s.id || s.appId, // Ensure appId is set
+        isInstalled: Boolean(s.isInstalled),
+        version: s.version || '1.0.0',
+        isCask: s.isCask !== false
+      }));
+      setSoftware(processedData);
     } catch (error) {
-      console.error('Error fetching installed software:', error);
-      setInstalledSoftware([]);
+      console.error('Error fetching software:', error);
+      setSoftware([]);
     }
   }, []);
 
@@ -132,73 +96,56 @@ const HomePage = () => {
       const scanResult = await installationService.scanInstalledSoftware();
       console.log('Scan completed:', scanResult);
       
-      // Then get the updated list
-      await loadInstalledSoftware();
+      if (scanResult) {
+        // Then get the updated list
+        await loadSoftware();
+        setSnackbarState({
+          open: true,
+          message: 'Software scan completed successfully',
+          severity: 'success'
+        });
+      } else {
+        setSnackbarState({
+          open: true,
+          message: 'Software scan failed',
+          severity: 'error'
+        });
+      }
     } catch (error) {
       console.error('Error during software scan:', error);
+      setSnackbarState({
+        open: true,
+        message: 'Error scanning software',
+        severity: 'error'
+      });
     } finally {
       setIsScanning(false);
     }
-  }, [isScanning, loadInstalledSoftware]);
+  }, [isScanning, loadSoftware]);
 
-  // Initial load and scan
+  // Initial load of software
   useEffect(() => {
-    const initializeSoftware = async () => {
-      if (!authService.isAuthenticated()) return;
+    if (authService.isAuthenticated()) {
+      loadSoftware();
+    }
+  }, [loadSoftware]);
 
-      try {
-        // First load existing data
-        await loadInstalledSoftware();
-        
-        // Then do a scan if needed
-        if (!isScanning) {
-          setIsScanning(true);
-          await installationService.scanInstalledSoftware();
-          await loadInstalledSoftware(); // Refresh after scan
-          setIsScanning(false);
-        }
-      } catch (error) {
-        console.error('Error initializing software:', error);
-        setIsScanning(false);
-      }
-    };
-
-    initializeSoftware();
-  }, [authService.isAuthenticated()]);
-
-  // Periodic refresh of installed software without scanning
-  useEffect(() => {
-    if (!authService.isAuthenticated()) return;
-
-    const interval = setInterval(() => {
-      if (!isScanning) {
-        loadInstalledSoftware();
-      }
-    }, 30000); // Refresh every 30 seconds
-
-    return () => clearInterval(interval);
-  }, [loadInstalledSoftware, isScanning]);
+  // Manual scan button handler
+  const handleScan = useCallback(async () => {
+    if (!isScanning) {
+      await scanAndLoadSoftware();
+    }
+  }, [isScanning, scanAndLoadSoftware]);
 
   // Filter software based on category and search term
-  const filteredSoftware = softwareList
-    .map(software => {
-      const installedApp = installedSoftware.find(installed => installed.appId === software.id);
-      console.log(`Software ${software.id}:`, installedApp ? 'installed' : 'not installed');
-      return {
-        ...software,
-        isInstalled: Boolean(installedApp),
-        version: installedApp?.version || '1.0.0',
-        appId: software.id // Ensure appId is set for API calls
-      };
-    })
-    .filter(software => {
-      const matchesCategory = selectedCategory === 'all' || 
-        software.category.toLowerCase() === categories.find(c => c.id === selectedCategory)?.name.toLowerCase();
+  const filteredSoftware = software
+    .filter(s => {
+      const type = getSoftwareType(s);
+      const matchesCategory = selectedCategory === 'all' || type === selectedCategory;
       
       const matchesSearch = !searchTerm || 
-        software.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        software.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        software.developer.toLowerCase().includes(searchTerm.toLowerCase());
+        s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        s.description.toLowerCase().includes(searchTerm.toLowerCase());
       
       return matchesCategory && matchesSearch;
     });
@@ -215,65 +162,10 @@ const HomePage = () => {
     setSelectedCategory(categoryId);
   }, []);
 
-  const handleInstall = useCallback(async (software) => {
-    try {
-      // Check if software is already installed
-      const isAlreadyInstalled = installedSoftware.some(
-        installed => installed.appId === software.id
-      );
-
-      if (isAlreadyInstalled) {
-        setSnackbarState({
-          open: true,
-          message: `${software.name} is already installed`,
-          severity: 'info'
-        });
-        return;
-      }
-
-      // Set installing state
-      setInstallingStates(prev => ({ ...prev, [software.id]: true }));
-
-      // First check if the package exists in Homebrew
-      const commandCheck = await installationService.checkCommand(software.command);
-      if (!commandCheck.exists) {
-        setSnackbarState({
-          open: true,
-          message: `${software.name} is not found in Homebrew`,
-          severity: 'error'
-        });
-        setInstallingStates(prev => ({ ...prev, [software.id]: false }));
-        return;
-      }
-
-      // Proceed with installation
-      await installationService.installSoftware({
-        id: software.id,
-        name: software.name,
-        version: commandCheck.version || '1.0.0'
-      });
-
-      // Show success message
-      setSnackbarState({
-        open: true,
-        message: `${software.name} has been successfully installed`,
-        severity: 'success'
-      });
-
-      // Refresh installed software list
-      await loadInstalledSoftware();
-    } catch (error) {
-      console.error('Error installing software:', error);
-      const errorMessage = error.response?.data?.message || error.message;
-      setSnackbarState({
-        open: true,
-        message: `Failed to install ${software.name}: ${errorMessage}`,
-        severity: 'error'
-      });
-    } finally {
-      setInstallingStates(prev => ({ ...prev, [software.id]: false }));
-    }
-  }, [loadInstalledSoftware, installedSoftware]);
+  const handleInstall = useCallback(async () => {
+    // Refresh software list after installation
+    await loadSoftware();
+  }, [loadSoftware]);
 
   const [checkingStates, setCheckingStates] = useState({});
 
@@ -428,11 +320,22 @@ const HomePage = () => {
               {categories.find(c => c.id === selectedCategory)?.name}
               {searchTerm && ` - Search: "${searchTerm}"`}
             </Typography>
-            {filteredSoftware.length === 0 && (
-              <Typography variant="body1" color="text.secondary">
-                No software found
-              </Typography>
-            )}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              {filteredSoftware.length === 0 && (
+                <Typography variant="body1" color="text.secondary">
+                  No software found
+                </Typography>
+              )}
+              <Button 
+                variant="contained" 
+                onClick={handleScan}
+                disabled={isScanning}
+                startIcon={<RefreshIcon />}
+                sx={{ minWidth: 140 }}
+              >
+                {isScanning ? 'Scanning...' : 'Scan Software'}
+              </Button>
+            </Box>
           </Box>
           <Grid 
             container 

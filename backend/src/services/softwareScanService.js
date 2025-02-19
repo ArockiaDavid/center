@@ -1,12 +1,58 @@
 const { exec } = require('child_process');
 const InstalledSoftware = require('../models/InstalledSoftware');
 const User = require('../models/User');
+const { devSoftwareList } = require('../config/software');
+
+// Package name mapping
+const packageMapping = {
+  'postman': 'postman-agent',
+  'visual-studio-code': 'visual-studio-code',
+  'pycharm-ce': 'pycharm-ce',
+  'python': 'python@3.11',
+  'anaconda': 'anaconda',
+  'intellij-idea-ce': 'intellij-idea-ce',
+  'git': 'git',
+  'github': 'github-desktop',
+  'jira': 'go-jira',
+  'confluence': 'confluence',
+  'java': 'openjdk@17',
+  'power-bi': 'microsoft-power-bi',
+  'snowflake-snowsql': 'snowflake-snowsql',
+  'swagger-editor': 'swagger-editor',
+  'spyder': 'spyder-ide',
+  'eclipse-ide': 'eclipse-java',
+  'figma': 'figma',
+  'docker': 'docker',
+  'node': 'node@18',
+  'npm': 'npm',
+  'nvm': 'nvm',
+  'tomcat': 'tomcat@9',
+  'awscli': 'awscli',
+  'jenkins': 'jenkins-lts',
+  'ansible': 'ansible',
+  'grafana': 'grafana',
+  'jupyter': 'jupyter',
+  'r': 'r',
+  'rstudio': 'rstudio',
+  'mobaxterm': 'mobaxterm',
+  'studio-3t': 'studio-3t',
+  'visual-studio': 'visual-studio',
+  'sublime-text': 'sublime-text',
+  'webstorm': 'webstorm',
+  'dbeaver-community': 'dbeaver-community'
+};
 
 const promiseExec = (command) => {
   return new Promise((resolve, reject) => {
     exec(command, (error, stdout, stderr) => {
       if (error) {
-        reject(error);
+        // Only reject if it's not a "not found" error
+        if (error.code !== 1) {
+          reject(error);
+          return;
+        }
+        // For "not found" errors, return empty string
+        resolve('');
         return;
       }
       resolve(stdout.trim());
@@ -14,149 +60,185 @@ const promiseExec = (command) => {
   });
 };
 
-const appConfig = {
-  'visual-studio-code': {
-    brewName: 'visual-studio-code',
-    appPath: '/Applications/Visual Studio Code.app'
-  },
-  'sublime-text': {
-    brewName: 'sublime-text',
-    appPath: '/Applications/Sublime Text.app'
-  },
-  'node': {
-    brewName: 'node',
-    appPath: '/usr/local/bin/node'
-  },
-  'firefox': {
-    brewName: 'firefox',
-    appPath: '/Applications/Firefox.app'
-  },
-  'google-chrome': {
-    brewName: 'google-chrome',
-    appPath: '/Applications/Google Chrome.app'
-  },
-  'spotify': {
-    brewName: 'spotify',
-    appPath: '/Applications/Spotify.app'
-  },
-  'slack': {
-    brewName: 'slack',
-    appPath: '/Applications/Slack.app'
-  },
-  'docker': {
-    brewName: 'docker',
-    appPath: '/Applications/Docker.app'
-  },
-  'postman': {
-    brewName: 'postman',
-    appPath: '/Applications/Postman.app'
-  }
-};
-
-const checkAppInstalled = async (appId) => {
-  const brewName = appConfig[appId]?.brewName;
-  if (!brewName) {
-    return false;
-  }
-
+// Get package info
+const getPackageInfo = async (name, isCask) => {
   try {
-    // First try checking with brew list
-    const { stdout } = await promiseExec(`brew list ${brewName} 2>/dev/null`);
-    if (stdout.trim()) {
-      return true;
+    // For cask applications, first check if the app exists in Applications folder
+    if (isCask) {
+      let appName;
+      // Handle special cases
+      switch (name) {
+        case 'visual-studio-code':
+          appName = 'Visual Studio Code';
+          break;
+        case 'pycharm-ce':
+          appName = 'PyCharm CE';
+          break;
+        case 'intellij-idea-ce':
+          appName = 'IntelliJ IDEA CE';
+          break;
+        case 'github-desktop':
+          appName = 'GitHub Desktop';
+          break;
+        case 'microsoft-power-bi':
+          appName = 'Power BI';
+          break;
+        case 'snowflake-snowsql':
+          appName = 'SnowSQL';
+          break;
+        case 'swagger-editor':
+          appName = 'Swagger Editor';
+          break;
+        case 'spyder-ide':
+          appName = 'Spyder';
+          break;
+        case 'eclipse-java':
+          appName = 'Eclipse';
+          break;
+        case 'figma':
+          appName = 'Figma';
+          break;
+        case 'studio-3t':
+          appName = 'Studio 3T';
+          break;
+        case 'sublime-text':
+          appName = 'Sublime Text';
+          break;
+        case 'dbeaver-community':
+          appName = 'DBeaver';
+          break;
+        default:
+          appName = name.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+      }
+
+      // Try different possible app names and locations
+      const possibleNames = [
+        appName,
+        appName.replace(/\s+/g, ''),  // No spaces
+        appName.split(' ')[0],        // First word only
+        name                          // Original name
+      ];
+
+      let appExists = false;
+      for (const possibleName of possibleNames) {
+        try {
+          const checkAppCommand = `ls "/Applications/${possibleName}.app" 2>/dev/null || ls "/Applications/${possibleName}.localized/${possibleName}.app" 2>/dev/null`;
+          const result = await promiseExec(checkAppCommand);
+          if (result) {
+            appExists = true;
+            break;
+          }
+        } catch (error) {
+          // Continue checking other names
+          continue;
+        }
+      }
+
+      if (!appExists) {
+        return null;
+      }
     }
 
-    // If not found in brew list, check brew cask list
-    const { stdout: caskStdout } = await promiseExec(`brew list --cask ${brewName} 2>/dev/null`);
-    return Boolean(caskStdout.trim());
+    // Then check if package exists in Homebrew
+    const checkCommand = isCask ? `brew list --cask ${name} 2>/dev/null` : `brew list ${name} 2>/dev/null`;
+    const exists = await promiseExec(checkCommand);
+    if (!exists) {
+      return null;
+    }
+
+    // Get version
+    const versionCommand = isCask ? `brew list --cask --versions ${name}` : `brew list --versions ${name}`;
+    const versionOutput = await promiseExec(versionCommand);
+    const version = versionOutput ? versionOutput.split(' ')[1] || '1.0.0' : '1.0.0';
+
+    return {
+      name: name,
+      version: version
+    };
   } catch (error) {
-    return false;
+    console.error(`Error getting info for ${name}:`, error);
+    return null;
   }
 };
 
 const scanInstalledSoftware = async (userId) => {
+  let scanError = null;
   try {
-    // Get user details first
-    const user = await User.findById(userId);
+    // Get user details
+    const user = await User.findById(userId).exec();
     if (!user) {
-      throw new Error('User not found');
+      console.error('User not found:', userId);
+      return false;
     }
 
-    // Check each configured application
+    console.log('Starting scan for user:', user.email);
+
     const installedApps = [];
-    for (const [appId, config] of Object.entries(appConfig)) {
-      const isInstalled = await checkAppInstalled(appId);
-      if (isInstalled) {
-        installedApps.push({
-          appId,
-          brewName: config.brewName
-        });
-      }
-    }
 
-    // Get versions for installed apps
-    for (const app of installedApps) {
+    // Only check our predefined list of software
+    for (const software of devSoftwareList) {
       try {
-        // Try getting version from brew cask first
-        const { stdout: caskVersion } = await promiseExec(`brew list --cask --versions ${app.brewName} 2>/dev/null`).catch(() => ({ stdout: '' }));
-        if (caskVersion.trim()) {
-          app.version = caskVersion.split(' ')[1] || '1.0.0';
-          continue;
+        const isCask = software.isCask !== false; // Default to true unless explicitly false
+        const packageName = packageMapping[software.id] || software.id;
+        const info = await getPackageInfo(packageName, isCask);
+        if (info) {
+          installedApps.push({
+            appId: software.id,
+            name: software.name,
+            version: info.version,
+            isCask: isCask
+          });
+          console.log(`Found installed software: ${software.name}`);
         }
-
-        // If not a cask, try regular brew
-        const { stdout: brewVersion } = await promiseExec(`brew list --versions ${app.brewName} 2>/dev/null`).catch(() => ({ stdout: '' }));
-        app.version = brewVersion.split(' ')[1] || '1.0.0';
       } catch (error) {
-        console.error(`Error getting version for ${app.brewName}:`, error);
-        app.version = '1.0.0';
+        console.error(`Error checking ${software.name}:`, error);
+        scanError = error;
+        // Continue scanning other software
+        continue;
       }
     }
 
-    // Update database for each installed software
+    // Update database
     for (const app of installedApps) {
-      let software = await InstalledSoftware.findOne({
-        userId: userId,
-        appId: app.appId
-      });
-
-      if (software) {
-        // Update existing record
-        software.version = app.version;
-        software.lastUpdateCheck = new Date();
-        software.status = 'installed';
-        software.userName = user.name;
-        software.userEmail = user.email;
-      } else {
-        // Create new record
-        software = new InstalledSoftware({
-          userId: userId,
+      await InstalledSoftware.findOneAndUpdate(
+        { userId, appId: app.appId },
+        {
+          userId,
           userName: user.name,
           userEmail: user.email,
           appId: app.appId,
-          name: app.brewName,
+          name: app.name,
           version: app.version,
+          isCask: app.isCask,
           status: 'installed',
-          installDate: new Date(),
-          lastUpdateCheck: new Date()
-        });
-      }
-
-      await software.save();
-      console.log(`Saved software record for ${app.brewName}`);
+          lastUpdateCheck: new Date(),
+          lastUpdated: new Date()
+        },
+        { upsert: true, new: true }
+      ).exec();
+      console.log(`Updated record for ${app.name}`);
     }
 
     // Remove records for uninstalled software
     const installedAppIds = installedApps.map(app => app.appId);
-    await InstalledSoftware.deleteMany({
-      userId: userId,
+    const result = await InstalledSoftware.deleteMany({
+      userId,
       appId: { $nin: installedAppIds }
-    });
-    console.log('Cleaned up uninstalled software records');
+    }).exec();
+    
+    if (result.deletedCount > 0) {
+      console.log(`Removed ${result.deletedCount} uninstalled software records`);
+    }
 
-    return true;
+    if (scanError) {
+      console.log('Scan completed with errors');
+      return false;
+    } else {
+      console.log('Scan completed successfully');
+      return true;
+    }
   } catch (error) {
-    console.error('Error scanning installed software:', error);
+    console.error('Error during scan:', error);
     return false;
   }
 };

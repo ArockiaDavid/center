@@ -56,19 +56,7 @@ const LoginPage = () => {
         throw new Error('Invalid response from server');
       }
       
-      // Store auth data
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
-      
-      // Verify storage
-      const storedToken = localStorage.getItem('token');
-      const storedUser = localStorage.getItem('user');
-      
-      if (!storedToken || !storedUser) {
-        throw new Error('Failed to store authentication data');
-      }
-      
-      // Navigate to home page
+      // Navigate to home page after successful login
       console.log('Login successful, navigating to home page');
       navigate('/home', { replace: true });
     } catch (error) {

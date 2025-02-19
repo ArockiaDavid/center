@@ -130,10 +130,6 @@ router.post('/login', async (req, res) => {
     
     console.log('User data fetched:', userData);
       
-    const BASE_URL = process.env.NODE_ENV === 'production' 
-      ? process.env.REACT_APP_API_URL_PROD 
-      : process.env.REACT_APP_API_URL_DEV;
-
     // Prepare response with full user data
     const responseData = {
       token,
@@ -141,7 +137,7 @@ router.post('/login', async (req, res) => {
         id: userData._id,
         name: userData.name,
         email: userData.email,
-        avatar: userData.avatar ? `${BASE_URL}${userData.avatar}` : null,
+        avatar: userData.avatar || null,
         role: userData.role,
         createdAt: userData.createdAt
       }

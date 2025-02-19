@@ -47,15 +47,78 @@ class InstallationService {
 
   async installSoftware(software) {
     try {
-      const response = await this.api.post('/', {
+      console.log('Starting software installation:', {
+        software,
+        token: localStorage.getItem('token'),
+        baseURL: this.api.defaults.baseURL
+      });
+      
+      const requestData = {
         appId: software.id,
         name: software.name,
-        version: software.version || '1.0.0'
+        version: software.version || '1.0.0',
+        isCask: Boolean(software.isCask)
+      };
+      
+      console.log('Sending installation request:', {
+        url: `${this.api.defaults.baseURL}/`,
+        data: requestData,
+        headers: this.api.defaults.headers
       });
+      
+      // Start installation
+      const response = await this.api.post('/', requestData);
+      
+      console.log('Installation response:', {
+        status: response.status,
+        headers: response.headers,
+        data: response.data
+      });
+      
+      // Check if the response indicates an error
+      if (response.data.error) {
+        console.error('Installation error from response:', response.data.error);
+        throw new Error(response.data.error);
+      }
+
       return response.data;
     } catch (error) {
-      console.error('Error installing software:', error);
-      throw error;
+      console.error('Installation error:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        headers: error.response?.headers,
+        config: error.config
+      });
+      
+      // Extract the error message from the response
+      const errorMessage = error.response?.data?.message || error.message;
+      
+      // Create a new error with the extracted message
+      const enhancedError = new Error(errorMessage);
+      
+      // Add the response data for additional context
+      enhancedError.response = error.response;
+      
+      throw enhancedError;
+    }
+  }
+
+  async checkCommand(command) {
+    try {
+      console.log('Checking command:', command);
+      const response = await this.api.post('/check-command', { command });
+      console.log('Command check response:', response.data);
+      return {
+        exists: response.data.exists,
+        version: response.data.version
+      };
+    } catch (error) {
+      console.error('Error checking Homebrew package:', error);
+      return {
+        exists: false,
+        version: '1.0.0'
+      };
     }
   }
 
@@ -88,23 +151,6 @@ class InstallationService {
     } catch (error) {
       console.error('Error uninstalling software:', error);
       throw error;
-    }
-  }
-
-  // Helper method to check if a package exists in Homebrew
-  async checkCommand(command) {
-    try {
-      const response = await this.api.post('/check-command', { command });
-      return {
-        exists: response.data.exists,
-        version: response.data.version
-      };
-    } catch (error) {
-      console.error('Error checking Homebrew package:', error);
-      return {
-        exists: false,
-        version: '1.0.0'
-      };
     }
   }
 }
